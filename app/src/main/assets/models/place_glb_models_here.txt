@@ -1,0 +1,3 @@
+Place your ARCore 3D models (.glb format) in this directory.
+The model names should match the MenuItem IDs (e.g., if a MenuItem ID is "burger_123", the model name should be "burger_123.glb").
+If no model is found, the app will try to load "food_placeholder.glb" from this folder.
