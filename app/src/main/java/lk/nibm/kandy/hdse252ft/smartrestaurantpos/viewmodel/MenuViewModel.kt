@@ -13,6 +13,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepositor
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.AuthRepository
 import javax.inject.Inject
 import android.content.Context
+import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 enum class DietaryFilter {
@@ -33,6 +34,13 @@ class MenuViewModel @Inject constructor(
 
     private val _tableNumber = MutableStateFlow(0)
     val tableNumber = _tableNumber.asStateFlow()
+
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "locked_table_number") {
+            val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+            _tableNumber.value = savedTable.toIntOrNull() ?: 0
+        }
+    }
 
     fun setTableNumber(table: Int) {
         val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
@@ -93,6 +101,7 @@ class MenuViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        sharedPrefs.registerOnSharedPreferenceChangeListener(prefListener)
         val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
         if (savedTable.isNotBlank()) {
             _tableNumber.value = savedTable.toIntOrNull() ?: 0
@@ -130,6 +139,7 @@ class MenuViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        sharedPrefs.unregisterOnSharedPreferenceChangeListener(prefListener)
         orderRepository.stopListeningToOrders()
     }
 }

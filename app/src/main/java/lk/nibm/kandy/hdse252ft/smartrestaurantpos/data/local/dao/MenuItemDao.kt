@@ -37,4 +37,7 @@ interface MenuItemDao {
 
     @Upsert
     suspend fun upsertAll(items: List<MenuItemEntity>)
+
+    @Query("SELECT COUNT(*) FROM menu_items")
+    suspend fun getItemsCount(): Int
 }

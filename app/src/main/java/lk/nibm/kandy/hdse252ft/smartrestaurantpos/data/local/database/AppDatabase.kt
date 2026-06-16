@@ -20,7 +20,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.entity.toEntity
 
 @Database(
     entities = [MenuItemEntity::class, OrderEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -59,12 +59,7 @@ abstract class AppDatabase : RoomDatabase() {
         private class DatabaseCallback(private val context: Context) : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                // Seed the database when it's first created
-                CoroutineScope(Dispatchers.IO).launch {
-                    val database = getDatabase(context)
-                    val sampleItems = SeedData.getSampleMenuItems()
-                    database.menuItemDao().upsertAll(sampleItems.map { it.toEntity() })
-                }
+                // Database created. Seeding is handled dynamically on app startup by MenuRepository.
             }
         }
     }

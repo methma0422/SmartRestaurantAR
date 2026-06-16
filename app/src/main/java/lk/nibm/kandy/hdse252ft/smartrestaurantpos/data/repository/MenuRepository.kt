@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.SeedData
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.dao.MenuItemDao
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.entity.toDomainModel
@@ -34,24 +35,67 @@ class MenuRepository @Inject constructor(
     }
 
     suspend fun syncMenuWithRemote() {
+        // 1. Seed local DB immediately if it is empty, so that the UI can load items instantly
         try {
-            val snapshot = firestore.collection("menu").get().await()
-            val remoteItems = snapshot.toObjects(MenuItem::class.java)
-            menuItemDao.upsertAll(remoteItems.map { it.toEntity() })
+            if (menuItemDao.getItemsCount() == 0) {
+                val localItems = SeedData.getSampleMenuItems()
+                menuItemDao.upsertAll(localItems.map { it.toEntity() })
+            }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        // 2. Sync with remote, with a timeout safety net
+        try {
+            val snapshot = withTimeoutOrNull(5000) {
+                firestore.collection("menu").get().await()
+            }
+            if (snapshot != null) {
+                val remoteItems = snapshot.toObjects(MenuItem::class.java).filter {
+                    it.id.isNotBlank() && it.name.isNotBlank() && it.price > 0.0
+                }
+                if (remoteItems.isNotEmpty()) {
+                    menuItemDao.upsertAll(remoteItems.map { it.toEntity() })
+                } else {
+                    seedFirestoreIfEmpty()
+                    // ensure local DB is seeded if remote was empty but returned successfully
+                    val localItems = SeedData.getSampleMenuItems()
+                    menuItemDao.upsertAll(localItems.map { it.toEntity() })
+                }
+            } else {
+                // Timeout occurred, fallback to local seeding if empty (already handled, but safe)
+                if (menuItemDao.getItemsCount() == 0) {
+                    val localItems = SeedData.getSampleMenuItems()
+                    menuItemDao.upsertAll(localItems.map { it.toEntity() })
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            if (menuItemDao.getItemsCount() == 0) {
+                val localItems = SeedData.getSampleMenuItems()
+                menuItemDao.upsertAll(localItems.map { it.toEntity() })
+            }
         }
     }
 
     suspend fun seedFirestoreIfEmpty() {
         try {
-            val snapshot = firestore.collection("menu").get().await()
+            val snapshot = withTimeoutOrNull(5000) {
+                firestore.collection("menu").get().await()
+            } ?: return
 
-            if (snapshot.isEmpty) {
+            val validDocs = snapshot.documents.filter {
+                val name = it.getString("name")
+                val price = it.getDouble("price")
+                !name.isNullOrBlank() && price != null && price > 0.0
+            }
+
+            if (validDocs.isEmpty()) {
                 val seedItems = SeedData.getSampleMenuItems()
-
-                seedItems.forEach { menuItem ->
-                    firestore.collection("menu").document(menuItem.id).set(menuItem).await()
+                withTimeoutOrNull(5000) {
+                    seedItems.forEach { menuItem ->
+                        firestore.collection("menu").document(menuItem.id).set(menuItem).await()
+                    }
                 }
             }
         } catch (e: Exception) {

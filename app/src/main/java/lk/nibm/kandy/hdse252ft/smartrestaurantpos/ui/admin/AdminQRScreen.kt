@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,6 +24,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,9 +48,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.utils.QrCodeGenerator
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamMuted
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamWhite
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.SurfaceDark
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,14 +78,23 @@ fun AdminQRScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Table QR Codes") },
+                title = {
+                    Text(
+                        text = "Table QR Codes",
+                        color = GoldPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Serif,
+                        fontSize = 20.sp,
+                        letterSpacing = 1.sp
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = GoldPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 )
             )
         }
@@ -80,68 +103,137 @@ fun AdminQRScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(20.dp),
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF0C0B0A),
+                            Color(0xFF171311),
+                            SurfaceDark
+                        )
+                    )
+                )
+                .padding(horizontal = 24.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            Text(
-                text = "Select Table Number (1–20)",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Table $tableNumber",
-                style = MaterialTheme.typography.headlineMedium,
-                color = GoldPrimary,
-                fontWeight = FontWeight.Bold
-            )
-
-            Slider(
-                value = tableNumber.toFloat(),
-                onValueChange = { tableNumber = it.toInt().coerceIn(1, 20) },
-                valueRange = 1f..20f,
-                steps = 18,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Image(
-                bitmap = qrBitmap.asImageBitmap(),
-                contentDescription = "QR Code for Table $tableNumber",
-                modifier = Modifier.size(240.dp)
-            )
-
-            Text(
-                text = deepLink,
-                style = MaterialTheme.typography.bodySmall,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Button(
-                    onClick = {
-                        saveQrToGallery(context, qrBitmap, tableNumber)
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
-                    shape = RoundedCornerShape(12.dp)
+                Text(
+                    text = "Select Table Number",
+                    color = CreamWhite,
+                    fontFamily = FontFamily.Serif,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Generate and save QR codes for dining tables",
+                    color = CreamMuted,
+                    fontSize = 13.sp
+                )
+            }
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFF2E2722), RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF151210))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Icon(Icons.Default.Download, contentDescription = null)
-                    Text(" Save QR", fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "TABLE $tableNumber",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = GoldPrimary,
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+
+                    Slider(
+                        value = tableNumber.toFloat(),
+                        onValueChange = { tableNumber = it.toInt().coerceIn(1, 20) },
+                        valueRange = 1f..20f,
+                        steps = 18,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = GoldPrimary,
+                            inactiveTrackColor = Color(0xFF2E2722),
+                            thumbColor = GoldPrimary,
+                            activeTickColor = Color(0xFF151210),
+                            inactiveTickColor = GoldPrimary.copy(alpha = 0.5f)
+                        )
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // QR Code display container
+            Card(
+                modifier = Modifier
+                    .size(260.dp)
+                    .border(1.dp, GoldPrimary.copy(alpha = 0.25f), RoundedCornerShape(24.dp)),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White) // keep white background for perfect QR scanning!
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        bitmap = qrBitmap.asImageBitmap(),
+                        contentDescription = "QR Code for Table $tableNumber",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Deep-link address card
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1B1715)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = deepLink,
+                    color = GoldPrimary,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp)
+                )
+            }
+
+            Button(
+                onClick = {
+                    saveQrToGallery(context, qrBitmap, tableNumber)
+                },
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                shape = RoundedCornerShape(24.dp)
+            ) {
+                Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF1E1B18))
+                Text(" DOWNLOAD QR CODE", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = Color(0xFF1E1B18), fontSize = 13.sp)
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "Print these QR codes and place one on each table.\nScanning opens the menu with the table number pre-set.",
+                text = "Print this QR code and place it on Table $tableNumber.\nScanning will launch the client menu locked to this table.",
                 style = MaterialTheme.typography.bodySmall,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = CreamMuted,
+                modifier = Modifier.padding(bottom = 10.dp)
             )
         }
     }
@@ -174,7 +266,7 @@ private fun saveQrToGallery(context: Context, bitmap: Bitmap, tableNumber: Int) 
                 "QR code for table $tableNumber"
             )
         }
-        Toast.makeText(context, "QR saved to gallery", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "QR saved to gallery successfully", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
         Toast.makeText(context, "Failed to save QR: ${e.message}", Toast.LENGTH_SHORT).show()
     }

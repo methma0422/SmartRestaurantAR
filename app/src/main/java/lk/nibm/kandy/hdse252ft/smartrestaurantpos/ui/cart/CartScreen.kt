@@ -94,7 +94,7 @@ fun CartScreen(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                enabled = tableNumberText.isNotBlank(),
+                                enabled = cartItems.isNotEmpty(),
                                 colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
                                 shape = RoundedCornerShape(12.dp)
                             ) {

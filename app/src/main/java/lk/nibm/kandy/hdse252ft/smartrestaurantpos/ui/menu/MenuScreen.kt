@@ -94,6 +94,7 @@ fun MenuScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
     val activeOrders by viewModel.activeOrders.collectAsState()
+    val currentTableNumber by viewModel.tableNumber.collectAsState()
 
     LaunchedEffect(tableNumber) {
         viewModel.setTableNumber(tableNumber)
@@ -105,8 +106,8 @@ fun MenuScreen(
     Scaffold(
         bottomBar = {
             RestaurantBottomBar(
-                currentRoute = Screen.Menu.createRoute(tableNumber),
-                tableNumber = tableNumber
+                currentRoute = Screen.Menu.createRoute(currentTableNumber),
+                tableNumber = currentTableNumber
             ) { route ->
                 navController.navigateToTopLevel(route)
             }
@@ -147,13 +148,13 @@ fun MenuScreen(
                     }
                 },
                 actions = {
-                    if (tableNumber > 0) {
+                    if (currentTableNumber > 0) {
                         Surface(
                             shape = RoundedCornerShape(999.dp),
                             color = GoldPrimary.copy(alpha = 0.15f)
                         ) {
                             Text(
-                                text = "Table $tableNumber",
+                                text = "Table $currentTableNumber",
                                 color = GoldPrimary,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                 fontSize = 12.sp,
@@ -167,7 +168,7 @@ fun MenuScreen(
                         Icon(Icons.Default.Person, contentDescription = "Admin", tint = GoldPrimary)
                     }
                     IconButton(onClick = {
-                        navController.navigate(Screen.Cart.createRoute(tableNumber))
+                        navController.navigate(Screen.Cart.createRoute(currentTableNumber))
                     }) {
                         Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = GoldPrimary)
                     }

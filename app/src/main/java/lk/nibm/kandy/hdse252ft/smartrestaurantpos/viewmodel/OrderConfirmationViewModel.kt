@@ -11,10 +11,14 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepositor
 import javax.inject.Inject
 
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.AuthRepository
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.UserRepository
 
 @HiltViewModel
 class OrderConfirmationViewModel @Inject constructor(
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    private val authRepository: AuthRepository,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _order = MutableStateFlow<Order?>(null)
@@ -22,6 +26,19 @@ class OrderConfirmationViewModel @Inject constructor(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading = _isLoading.asStateFlow()
+
+    private val _isAdmin = MutableStateFlow(false)
+    val isAdmin = _isAdmin.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            if (authRepository.isLoggedIn) {
+                val uid = authRepository.currentUserId
+                val role = userRepository.getUserRole(uid)
+                _isAdmin.value = role == lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.UserRole.ADMIN
+            }
+        }
+    }
 
     fun loadOrder(orderId: String) {
         orderRepository.startListeningToOrders()
@@ -38,6 +55,46 @@ class OrderConfirmationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 orderRepository.updateOrderStatus(orderId, OrderStatus.CANCELLED)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun confirmOrder(orderId: String) {
+        viewModelScope.launch {
+            try {
+                orderRepository.updateOrderStatus(orderId, OrderStatus.CONFIRMED)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun markReady(orderId: String) {
+        viewModelScope.launch {
+            try {
+                orderRepository.updateOrderStatus(orderId, OrderStatus.READY)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun completeOrder(orderId: String) {
+        viewModelScope.launch {
+            try {
+                orderRepository.updateOrderStatus(orderId, OrderStatus.DELIVERED)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun applyDiscount(orderId: String, discount: Double) {
+        viewModelScope.launch {
+            try {
+                orderRepository.updateOrderDiscount(orderId, discount)
             } catch (e: Exception) {
                 e.printStackTrace()
             }

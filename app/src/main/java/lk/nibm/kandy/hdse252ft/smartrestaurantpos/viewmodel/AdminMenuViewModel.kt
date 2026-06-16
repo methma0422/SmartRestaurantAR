@@ -14,17 +14,42 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.MenuRepository
 import javax.inject.Inject
 
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+
 @HiltViewModel
 class AdminMenuViewModel @Inject constructor(
     private val menuRepository: MenuRepository
 ) : ViewModel() {
 
-    val menuItems: StateFlow<List<MenuItem>> = menuRepository.getAllMenuItems()
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val _selectedCategory = MutableStateFlow("All")
+    val selectedCategory = _selectedCategory.asStateFlow()
+
+    val categories: StateFlow<List<String>> = menuRepository.getCategories()
+        .map { listOf("All") + it }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
+            initialValue = listOf("All")
         )
+
+    val menuItems: StateFlow<List<MenuItem>> = combine(
+        menuRepository.getAllMenuItems(),
+        _searchQuery,
+        _selectedCategory
+    ) { items, query, category ->
+        items.filter { item ->
+            (category == "All" || item.category.equals(category, ignoreCase = true)) &&
+            (query.isBlank() || item.name.contains(query, ignoreCase = true) || item.description.contains(query, ignoreCase = true))
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
 
     private val _isDeleting = MutableStateFlow<String?>(null)
     val isDeleting = _isDeleting.asStateFlow()
@@ -36,6 +61,14 @@ class AdminMenuViewModel @Inject constructor(
         viewModelScope.launch {
             menuRepository.syncMenuWithRemote()
         }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun onCategorySelect(category: String) {
+        _selectedCategory.value = category
     }
 
     fun deleteMenuItem(itemId: String) {

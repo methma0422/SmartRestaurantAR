@@ -15,6 +15,7 @@ data class OrderEntity(
     val latitude: Double?,
     val longitude: Double?,
     val totalAmount: Double,
+    val discount: Double = 0.0,
     val status: OrderStatus,
     val timestamp: Long
 )
@@ -27,6 +28,7 @@ fun OrderEntity.toDomainModel() = Order(
     latitude = latitude,
     longitude = longitude,
     totalAmount = totalAmount,
+    discount = discount,
     status = status,
     timestamp = timestamp
 )

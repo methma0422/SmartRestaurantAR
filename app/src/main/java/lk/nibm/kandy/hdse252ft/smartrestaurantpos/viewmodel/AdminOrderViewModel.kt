@@ -14,6 +14,8 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepository
 import javax.inject.Inject
 
+import kotlinx.coroutines.flow.combine
+
 @HiltViewModel
 class AdminOrderViewModel @Inject constructor(
     private val orderRepository: OrderRepository
@@ -25,16 +27,56 @@ class AdminOrderViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage = _errorMessage.asStateFlow()
 
+    private val _statusFilter = MutableStateFlow("Active")
+    val statusFilter = _statusFilter.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
     init {
         orderRepository.startListeningToAllOrders()
     }
 
-    val orders: StateFlow<List<Order>> = orderRepository.getAllOrders()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    val orders: StateFlow<List<Order>> = combine(
+        orderRepository.getAllOrders(),
+        _statusFilter,
+        _searchQuery
+    ) { rawOrders, filter, query ->
+        rawOrders.filter { order ->
+            val matchesFilter = when (filter) {
+                "Active" -> order.status == OrderStatus.PENDING || order.status == OrderStatus.CONFIRMED || order.status == OrderStatus.READY
+                "Pending" -> order.status == OrderStatus.PENDING
+                "Confirmed" -> order.status == OrderStatus.CONFIRMED
+                "Ready" -> order.status == OrderStatus.READY
+                "Delivered" -> order.status == OrderStatus.DELIVERED
+                "Cancelled" -> order.status == OrderStatus.CANCELLED
+                "All" -> true
+                else -> true
+            }
+
+            val matchesQuery = if (query.isBlank()) {
+                true
+            } else {
+                order.tableNumber.contains(query, ignoreCase = true) ||
+                order.id.contains(query, ignoreCase = true) ||
+                order.items.any { it.menuItem.name.contains(query, ignoreCase = true) }
+            }
+
+            matchesFilter && matchesQuery
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun onStatusFilterChange(filter: String) {
+        _statusFilter.value = filter
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
 
     fun confirmOrder(orderId: String) = updateStatus(orderId, OrderStatus.CONFIRMED)
 

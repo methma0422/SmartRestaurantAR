@@ -18,6 +18,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepository
 import javax.inject.Inject
 import android.content.Context
+import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
@@ -37,7 +38,18 @@ class CartViewModel @Inject constructor(
     private val _isTableLocked = MutableStateFlow(false)
     val isTableLocked: StateFlow<Boolean> = _isTableLocked.asStateFlow()
 
+    private val prefListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "locked_table_number") {
+            val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+            _tableNumber.value = savedTable
+            if (savedTable.isNotBlank()) {
+                _isTableLocked.value = true
+            }
+        }
+    }
+
     init {
+        sharedPrefs.registerOnSharedPreferenceChangeListener(prefListener)
         val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
         if (savedTable.isNotBlank()) {
             _tableNumber.value = savedTable
@@ -100,6 +112,13 @@ class CartViewModel @Inject constructor(
         val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
         if (savedTable.isBlank()) {
             _tableNumber.value = number
+            if (number.isNotBlank()) {
+                _isTableLocked.value = true
+                sharedPrefs.edit().putString("locked_table_number", number).apply()
+                viewModelScope.launch {
+                    orderRepository.assignUnassignedOrdersToTable(number)
+                }
+            }
         } else {
             _tableNumber.value = savedTable
             _isTableLocked.value = true
@@ -120,6 +139,9 @@ class CartViewModel @Inject constructor(
                 _tableNumber.value = tableNumber.toString()
                 _isTableLocked.value = true
                 sharedPrefs.edit().putString("locked_table_number", tableNumber.toString()).apply()
+                viewModelScope.launch {
+                    orderRepository.assignUnassignedOrdersToTable(tableNumber.toString())
+                }
             } else {
                 _tableNumber.value = savedTable
                 _isTableLocked.value = true
@@ -138,10 +160,6 @@ class CartViewModel @Inject constructor(
         viewModelScope.launch {
             if (_cartItems.value.isEmpty()) {
                 _placeOrderError.value = "Your cart is empty"
-                return@launch
-            }
-            if (_tableNumber.value.isBlank()) {
-                _placeOrderError.value = "Enter a table number before placing the order"
                 return@launch
             }
 
@@ -185,5 +203,10 @@ class CartViewModel @Inject constructor(
                 _isPlacingOrder.value = false
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sharedPrefs.unregisterOnSharedPreferenceChangeListener(prefListener)
     }
 }

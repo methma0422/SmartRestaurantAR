@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.dao.OrderDao
@@ -49,6 +50,7 @@ class OrderRepository @Inject constructor(
             latitude = null,
             longitude = null,
             totalAmount = totalAmount,
+            discount = 0.0,
             status = OrderStatus.PENDING,
             timestamp = System.currentTimeMillis()
         )
@@ -102,6 +104,46 @@ class OrderRepository @Inject constructor(
         }
     }
 
+    suspend fun assignUnassignedOrdersToTable(tableNumber: String) {
+        try {
+            val entities = orderDao.getAllOrders().firstOrNull() ?: emptyList()
+            val unassignedOrders = entities.filter {
+                (it.tableNumber.isBlank() || it.tableNumber == "0") &&
+                (it.status == OrderStatus.PENDING || it.status == OrderStatus.CONFIRMED || it.status == OrderStatus.READY)
+            }
+
+            unassignedOrders.forEach { orderEntity ->
+                val updatedEntity = orderEntity.copy(tableNumber = tableNumber)
+                orderDao.insertOrder(updatedEntity)
+                try {
+                    firestore.collection("orders").document(orderEntity.id)
+                        .set(updatedEntity.toDomainModel()).await()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    suspend fun updateOrderDiscount(orderId: String, discount: Double) {
+        val existing = orderDao.getOrderById(orderId)
+            ?: throw IllegalStateException("Order not found locally")
+
+        val updated = existing.copy(discount = discount)
+        orderDao.insertOrder(updated)
+
+        try {
+            firestore.collection("orders").document(orderId)
+                .set(updated.toDomainModel()).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+
     fun startListeningToAllOrders() {
         orderListener?.remove()
 
@@ -140,6 +182,7 @@ class OrderRepository @Inject constructor(
         latitude = latitude,
         longitude = longitude,
         totalAmount = totalAmount,
+        discount = discount,
         status = status,
         timestamp = timestamp
     )

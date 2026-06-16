@@ -14,7 +14,11 @@ import javax.inject.Inject
 data class OrderSummaryCounts(
     val pending: Int = 0,
     val confirmed: Int = 0,
-    val ready: Int = 0
+    val ready: Int = 0,
+    val delivered: Int = 0,
+    val cancelled: Int = 0,
+    val totalRevenue: Double = 0.0,
+    val totalOrders: Int = 0
 )
 
 @HiltViewModel
@@ -28,10 +32,16 @@ class AdminDashboardViewModel @Inject constructor(
 
     val orderCounts: StateFlow<OrderSummaryCounts> = orderRepository.getAllOrders()
         .map { orders ->
+            val delivered = orders.filter { it.status == OrderStatus.DELIVERED }
+            val revenue = delivered.sumOf { it.totalAmount - (it.discount ?: 0.0) }
             OrderSummaryCounts(
                 pending = orders.count { it.status == OrderStatus.PENDING },
                 confirmed = orders.count { it.status == OrderStatus.CONFIRMED },
-                ready = orders.count { it.status == OrderStatus.READY }
+                ready = orders.count { it.status == OrderStatus.READY },
+                delivered = delivered.size,
+                cancelled = orders.count { it.status == OrderStatus.CANCELLED },
+                totalRevenue = revenue,
+                totalOrders = orders.size
             )
         }
         .stateIn(

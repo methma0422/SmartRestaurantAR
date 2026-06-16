@@ -83,16 +83,26 @@ fun QRScannerScreen(
                     context = context,
                     onQrCodeScanned = { result ->
                         val tableNum = parseTableFromQr(result)
+                        val previousRoute = navController.previousBackStackEntry?.destination?.route
+                        val isFromOrderConfirmation = previousRoute != null && previousRoute.contains("order_confirmation")
 
                         if (tableNum != null && tableNum > 0) {
                             cartViewModel.setTableFromQr(tableNum)
-                            navController.navigate(Screen.Cart.createRoute(tableNum)) {
-                                popUpTo(Screen.QRScanner.route) { inclusive = true }
+                            if (isFromOrderConfirmation) {
+                                navController.popBackStack()
+                            } else {
+                                navController.navigate(Screen.Cart.createRoute(tableNum)) {
+                                    popUpTo(Screen.QRScanner.route) { inclusive = true }
+                                }
                             }
                         } else {
                             cartViewModel.setTableNumber(result)
-                            navController.navigate(Screen.Cart.createRoute(0)) {
-                                popUpTo(Screen.QRScanner.route) { inclusive = true }
+                            if (isFromOrderConfirmation) {
+                                navController.popBackStack()
+                            } else {
+                                navController.navigate(Screen.Cart.createRoute(0)) {
+                                    popUpTo(Screen.QRScanner.route) { inclusive = true }
+                                }
                             }
                         }
                     }

@@ -8,6 +8,7 @@ data class Order(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val totalAmount: Double = 0.0,
+    val discount: Double = 0.0,
     val status: OrderStatus = OrderStatus.PENDING,
     val timestamp: Long = System.currentTimeMillis()
 )
