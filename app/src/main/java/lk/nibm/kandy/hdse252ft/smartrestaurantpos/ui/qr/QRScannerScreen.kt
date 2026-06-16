@@ -2,6 +2,7 @@
 package lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.qr
 
 import android.Manifest
+import android.net.Uri
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Size
@@ -81,19 +82,18 @@ fun QRScannerScreen(
                 CameraPreviewScanner(
                     context = context,
                     onQrCodeScanned = { result ->
-                        // Scanned code format: "table_5" or just "5"
-                        val tableNum = if (result.startsWith("table_")) {
-                            result.substringAfter("table_")
+                        val tableNum = parseTableFromQr(result)
+
+                        if (tableNum != null && tableNum > 0) {
+                            cartViewModel.setTableFromQr(tableNum)
+                            navController.navigate(Screen.Cart.createRoute(tableNum)) {
+                                popUpTo(Screen.QRScanner.route) { inclusive = true }
+                            }
                         } else {
-                            result
-                        }
-
-                        // Set table number in cart
-                        cartViewModel.setTableNumber(tableNum)
-
-                        // Navigate to Cart screen
-                        navController.navigate(Screen.Cart.route) {
-                            popUpTo(Screen.QRScanner.route) { inclusive = true }
+                            cartViewModel.setTableNumber(result)
+                            navController.navigate(Screen.Cart.createRoute(0)) {
+                                popUpTo(Screen.QRScanner.route) { inclusive = true }
+                            }
                         }
                     }
                 )
@@ -237,5 +237,15 @@ private fun processImageProxy(
         }
     } else {
         imageProxy.close()
+    }
+}
+
+private fun parseTableFromQr(content: String): Int? {
+    return when {
+        content.startsWith("thegoldenoak://") -> {
+            Uri.parse(content).getQueryParameter("table")?.toIntOrNull()
+        }
+        content.startsWith("table_") -> content.substringAfter("table_").toIntOrNull()
+        else -> content.toIntOrNull()
     }
 }

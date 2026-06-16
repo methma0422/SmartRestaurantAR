@@ -1,15 +1,42 @@
 package lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.ar
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -24,6 +51,7 @@ import com.google.ar.core.Frame
 import com.google.ar.core.Plane
 import io.github.sceneview.ar.ARScene
 import io.github.sceneview.ar.node.AnchorNode
+import io.github.sceneview.node.ModelNode
 import io.github.sceneview.ar.rememberARCameraNode
 import io.github.sceneview.rememberCollisionSystem
 import io.github.sceneview.rememberEngine
@@ -42,11 +70,13 @@ fun ARViewScreen(
     itemId: String?,
     viewModel: MenuViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val menuItems by viewModel.menuItems.collectAsState()
     val item = menuItems.find { it.id == itemId }
-
-    // ── Camera permission ─────────────────────────────────────────────────
     val cameraPermission = rememberPermissionState(android.Manifest.permission.CAMERA)
+    val isArSupported = remember(context) {
+        context.packageManager.hasSystemFeature("android.hardware.camera.ar")
+    }
 
     LaunchedEffect(Unit) {
         if (!cameraPermission.status.isGranted) {
@@ -54,7 +84,65 @@ fun ARViewScreen(
         }
     }
 
-    // Show permission UI if not granted
+    if (!isArSupported) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("View in AR", color = GoldPrimary) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = GoldPrimary
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1B16))
+                )
+            },
+            containerColor = Color(0xFF121212)
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    modifier = Modifier.padding(32.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B16)),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "AR not supported on this device",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "This phone does not expose the required AR hardware feature, so the preview cannot be launched.",
+                            color = Color(0xFFB8A990),
+                            fontSize = 14.sp
+                        )
+                        Button(
+                            onClick = { navController.popBackStack() },
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                            shape = RoundedCornerShape(24.dp)
+                        ) {
+                            Text("Go Back", color = Color(0xFF1A1200), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+        return
+    }
+
     if (!cameraPermission.status.isGranted) {
         Scaffold(
             topBar = {
@@ -69,9 +157,7 @@ fun ARViewScreen(
                             )
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF1E1B16)
-                    )
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF1E1B16))
                 )
             },
             containerColor = Color(0xFF121212)
@@ -84,9 +170,7 @@ fun ARViewScreen(
             ) {
                 Card(
                     modifier = Modifier.padding(32.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1E1B16)
-                    ),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B16)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(
@@ -95,14 +179,12 @@ fun ARViewScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(text = "📷", fontSize = 48.sp)
-
                         Text(
                             text = "Camera Permission Required",
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFF5F0E8),
                             fontSize = 16.sp
                         )
-
                         Text(
                             text = if (cameraPermission.status.shouldShowRationale) {
                                 "Camera access was denied. Please grant camera permission to use the AR feature and view ingredients on your dish."
@@ -112,14 +194,10 @@ fun ARViewScreen(
                             color = Color(0xFFB8A990),
                             fontSize = 14.sp
                         )
-
-                        Spacer(Modifier.height(4.dp))
-
+                        Spacer(modifier = Modifier.height(4.dp))
                         Button(
                             onClick = { cameraPermission.launchPermissionRequest() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = GoldPrimary
-                            ),
+                            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
                             shape = RoundedCornerShape(24.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -129,7 +207,6 @@ fun ARViewScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-
                         OutlinedButton(
                             onClick = { navController.popBackStack() },
                             shape = RoundedCornerShape(24.dp),
@@ -147,13 +224,12 @@ fun ARViewScreen(
         return
     }
 
-    // ── SceneView 2.x remembered resources ───────────────────────────────
-    val engine          = rememberEngine()
-    val modelLoader     = rememberModelLoader(engine)
-    val materialLoader  = rememberMaterialLoader(engine)
-    val cameraNode      = rememberARCameraNode(engine)
-    val childNodes      = rememberNodes()
-    val view            = rememberView(engine)
+    val engine = rememberEngine()
+    val modelLoader = rememberModelLoader(engine)
+    val materialLoader = rememberMaterialLoader(engine)
+    val cameraNode = rememberARCameraNode(engine)
+    val childNodes = rememberNodes()
+    val view = rememberView(engine)
     val collisionSystem = rememberCollisionSystem(view)
 
     var planeDetected by remember { mutableStateOf(false) }
@@ -162,12 +238,7 @@ fun ARViewScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = "View in AR: ${item?.name ?: ""}",
-                        color = GoldPrimary
-                    )
-                },
+                title = { Text(text = "View in AR: ${item?.name ?: ""}", color = GoldPrimary) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -177,9 +248,7 @@ fun ARViewScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
@@ -188,8 +257,6 @@ fun ARViewScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-
-            // ── ARScene ───────────────────────────────────────────────────
             ARScene(
                 modifier = Modifier.fillMaxSize(),
                 childNodes = childNodes,
@@ -198,22 +265,18 @@ fun ARViewScreen(
                 modelLoader = modelLoader,
                 collisionSystem = collisionSystem,
                 sessionConfiguration = { session, config ->
-                    config.depthMode = when (
-                        session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)
-                    ) {
-                        true  -> Config.DepthMode.AUTOMATIC
+                    config.depthMode = when (session.isDepthModeSupported(Config.DepthMode.AUTOMATIC)) {
+                        true -> Config.DepthMode.AUTOMATIC
                         false -> Config.DepthMode.DISABLED
                     }
                     config.instantPlacementMode = Config.InstantPlacementMode.LOCAL_Y_UP
-                    config.lightEstimationMode  = Config.LightEstimationMode.ENVIRONMENTAL_HDR
+                    config.lightEstimationMode = Config.LightEstimationMode.ENVIRONMENTAL_HDR
                 },
                 cameraNode = cameraNode,
                 planeRenderer = true,
                 onSessionUpdated = { _, frame ->
                     arFrame = frame
-                    if (!planeDetected &&
-                        frame.getUpdatedTrackables(Plane::class.java).isNotEmpty()
-                    ) {
+                    if (!planeDetected && frame.getUpdatedTrackables(Plane::class.java).isNotEmpty()) {
                         planeDetected = true
                     }
                 },
@@ -224,14 +287,47 @@ fun ARViewScreen(
                                 ?.hitTest(motionEvent)
                                 ?.firstOrNull { hitResult ->
                                     val trackable = hitResult.trackable
-                                    trackable is Plane &&
-                                            trackable.isPoseInPolygon(hitResult.hitPose)
+                                    trackable is Plane && trackable.isPoseInPolygon(hitResult.hitPose)
                                 }
                                 ?.let { hitResult ->
                                     val anchorNode = AnchorNode(
                                         engine = engine,
                                         anchor = hitResult.createAnchor()
                                     )
+
+                                    val modelPath = "models/$itemId.glb"
+                                    val fallbackPath = "models/food_placeholder.glb"
+                                    var finalModelPath: String? = null
+
+                                    try {
+                                        context.assets.open(modelPath).close()
+                                        finalModelPath = modelPath
+                                    } catch (e: Exception) {
+                                        try {
+                                            context.assets.open(fallbackPath).close()
+                                            finalModelPath = fallbackPath
+                                        } catch (ex: Exception) {
+                                            // Neither model file exists
+                                        }
+                                    }
+
+                                    if (finalModelPath != null) {
+                                        val modelInstance = modelLoader.createModelInstance(finalModelPath)
+                                        val modelNode = ModelNode(
+                                            modelInstance = modelInstance
+                                        ).apply {
+                                            scale = io.github.sceneview.math.Scale(0.3f, 0.3f, 0.3f)
+                                            isEditable = true
+                                        }
+                                        anchorNode.addChildNode(modelNode)
+                                    } else {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "No 3D asset model found in assets. Placed reference anchor.",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+
                                     childNodes += anchorNode
                                 }
                         }
@@ -239,7 +335,6 @@ fun ARViewScreen(
                 )
             )
 
-            // ── Ingredient info overlay cards ─────────────────────────────
             item?.let { menuItem ->
                 if (menuItem.ingredients.isNotEmpty()) {
                     Column(
@@ -275,10 +370,9 @@ fun ARViewScreen(
                 }
             }
 
-            // ── Bottom instruction pill ───────────────────────────────────
             val instruction = when {
                 !planeDetected -> "Point camera at a flat surface..."
-                else           -> "Tap on the surface to place ${item?.name ?: "item"}"
+                else -> "Tap on the surface to place ${item?.name ?: "item"}"
             }
 
             Text(
@@ -288,10 +382,7 @@ fun ARViewScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 32.dp)
-                    .background(
-                        Color.Black.copy(alpha = 0.55f),
-                        RoundedCornerShape(20.dp)
-                    )
+                    .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             )
         }

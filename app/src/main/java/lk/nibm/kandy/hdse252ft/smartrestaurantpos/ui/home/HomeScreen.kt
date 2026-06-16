@@ -30,7 +30,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.RestaurantBottomBar
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.navigateToTopLevel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldLight
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.AuthViewModel
@@ -63,6 +65,11 @@ fun HomeScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
+        },
+        bottomBar = {
+            RestaurantBottomBar(currentRoute = Screen.Home.route) { route ->
+                navController.navigateToTopLevel(route)
+            }
         }
     ) { padding ->
         Column(
@@ -93,6 +100,35 @@ fun HomeScreen(
                 )
             }
 
+            val totalItems = menuItems.size
+            val vegetarianItems = menuItems.count { it.isVegetarian }
+            val hotPickCount = menuItems.count { it.isNew || it.discountedPrice != null }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                DashboardStatCard(
+                    label = "Items",
+                    value = totalItems.toString(),
+                    modifier = Modifier.weight(1f)
+                )
+                DashboardStatCard(
+                    label = "Veg",
+                    value = vegetarianItems.toString(),
+                    modifier = Modifier.weight(1f)
+                )
+                DashboardStatCard(
+                    label = "Hot Picks",
+                    value = hotPickCount.toString(),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // Quick Actions Cards Grid
             Text(
                 text = "Quick Navigation",
@@ -114,7 +150,7 @@ fun HomeScreen(
                     icon = Icons.Default.RestaurantMenu,
                     modifier = Modifier.weight(1f)
                 ) {
-                    navController.navigate(Screen.Menu.route)
+                    navController.navigate(Screen.Menu.createRoute(0))
                 }
 
                 NavigationCard(
@@ -141,7 +177,7 @@ fun HomeScreen(
                     icon = Icons.Default.ShoppingCart,
                     modifier = Modifier.weight(1f)
                 ) {
-                    navController.navigate(Screen.Cart.route)
+                    navController.navigate(Screen.Cart.createRoute(0))
                 }
 
                 NavigationCard(
@@ -181,6 +217,36 @@ fun HomeScreen(
                 
                 Spacer(modifier = Modifier.height(24.dp))
             }
+        }
+    }
+}
+
+@Composable
+fun DashboardStatCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = GoldPrimary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

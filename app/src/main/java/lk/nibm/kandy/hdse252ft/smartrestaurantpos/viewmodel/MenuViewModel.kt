@@ -9,6 +9,12 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.MenuRepository
 import javax.inject.Inject
 
+enum class DietaryFilter {
+    All,
+    Vegetarian,
+    NonVegetarian
+}
+
 @HiltViewModel
 class MenuViewModel @Inject constructor(
     private val repository: MenuRepository
@@ -20,8 +26,14 @@ class MenuViewModel @Inject constructor(
     private val _selectedCategory = MutableStateFlow("All")
     val selectedCategory = _selectedCategory.asStateFlow()
 
-    private val _showOnlyVegetarian = MutableStateFlow(false)
-    val showOnlyVegetarian = _showOnlyVegetarian.asStateFlow()
+    private val _dietaryFilter = MutableStateFlow(DietaryFilter.All)
+    val dietaryFilter = _dietaryFilter.asStateFlow()
+
+    private val _isSyncing = MutableStateFlow(true)
+    val isSyncing = _isSyncing.asStateFlow()
+
+    private val _syncError = MutableStateFlow<String?>(null)
+    val syncError = _syncError.asStateFlow()
 
     val categories = repository.getCategories()
         .map { listOf("All") + it }
@@ -31,12 +43,16 @@ class MenuViewModel @Inject constructor(
         repository.getAllMenuItems(),
         _searchQuery,
         _selectedCategory,
-        _showOnlyVegetarian
-    ) { items, query, category, isVeg ->
+        _dietaryFilter
+    ) { items, query, category, filter ->
         items.filter { item ->
             (category == "All" || item.category == category) &&
             (item.name.contains(query, ignoreCase = true)) &&
-            (!isVeg || item.isVegetarian)
+            when (filter) {
+                DietaryFilter.All -> true
+                DietaryFilter.Vegetarian -> item.isVegetarian
+                DietaryFilter.NonVegetarian -> !item.isVegetarian
+            }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -52,14 +68,22 @@ class MenuViewModel @Inject constructor(
         _selectedCategory.value = category
     }
 
-    fun toggleVegetarianFilter() {
-        _showOnlyVegetarian.value = !_showOnlyVegetarian.value
+    fun onDietaryFilterSelect(filter: DietaryFilter) {
+        _dietaryFilter.value = filter
     }
 
     private fun syncMenu() {
         viewModelScope.launch {
-            repository.seedFirestoreIfEmpty()
-            repository.syncMenuWithRemote()
+            _isSyncing.value = true
+            _syncError.value = null
+            try {
+                repository.seedFirestoreIfEmpty()
+                repository.syncMenuWithRemote()
+            } catch (e: Exception) {
+                _syncError.value = e.localizedMessage ?: "Unable to load menu right now"
+            } finally {
+                _isSyncing.value = false
+            }
         }
     }
 }

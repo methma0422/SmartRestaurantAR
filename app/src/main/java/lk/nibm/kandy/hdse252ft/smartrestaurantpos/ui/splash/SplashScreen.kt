@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Restaurant
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,32 +33,37 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import kotlinx.coroutines.delay
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
-import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.AuthViewModel
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.SplashViewModel
 
 @Composable
 fun SplashScreen(
     navController: NavController,
-    authViewModel: AuthViewModel = hiltViewModel()
+    deepLinkTableNumber: Int? = null,
+    viewModel: SplashViewModel = hiltViewModel()
 ) {
     val scale = remember { Animatable(0f) }
-    
+    val destination by viewModel.destination.collectAsState()
+
     LaunchedEffect(Unit) {
         scale.animateTo(
             targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 800,
-                easing = { 
-                    it * it 
-                }
-            )
+            animationSpec = tween(durationMillis = 800) { it * it }
         )
-        delay(1200)
-        val targetRoute = if (authViewModel.isLoggedIn) Screen.Home.route else Screen.Login.route
-        navController.navigate(targetRoute) {
-            popUpTo(Screen.Splash.route) { inclusive = true }
+        if (deepLinkTableNumber != null && deepLinkTableNumber > 0) {
+            viewModel.setDeepLinkTable(deepLinkTableNumber)
+        } else {
+            viewModel.resolveDestination()
+        }
+    }
+
+    LaunchedEffect(destination) {
+        destination?.let { dest ->
+            kotlinx.coroutines.delay(1200)
+            navController.navigate(viewModel.destinationRoute(dest)) {
+                popUpTo(Screen.Splash.route) { inclusive = true }
+            }
         }
     }
 
@@ -64,10 +72,7 @@ fun SplashScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1E1B16),
-                        Color(0xFF121212)
-                    )
+                    colors = listOf(Color(0xFF1E1B16), Color(0xFF121212))
                 )
             ),
         contentAlignment = Alignment.Center
@@ -84,9 +89,9 @@ fun SplashScreen(
                     .size(120.dp)
                     .clip(CircleShape)
             )
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             Text(
                 text = "The Golden Oak",
                 style = MaterialTheme.typography.headlineMedium,
@@ -95,9 +100,9 @@ fun SplashScreen(
                 fontSize = 32.sp,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(8.dp))
-            
+
             Text(
                 text = "Fine Dining Experience",
                 style = MaterialTheme.typography.bodyLarge,
@@ -105,16 +110,20 @@ fun SplashScreen(
                 fontSize = 16.sp,
                 textAlign = TextAlign.Center
             )
-            
+
             Spacer(modifier = Modifier.height(32.dp))
-            
-            Text(
-                text = "Digital Menu & POS",
-                style = MaterialTheme.typography.labelMedium,
-                color = GoldPrimary.copy(alpha = 0.7f),
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center
-            )
+
+            if (destination == null) {
+                CircularProgressIndicator(color = GoldPrimary, modifier = Modifier.size(28.dp))
+            } else {
+                Text(
+                    text = "Digital Menu & POS",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = GoldPrimary.copy(alpha = 0.7f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

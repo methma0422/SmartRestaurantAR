@@ -3,12 +3,15 @@ package lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.tasks.await
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.User
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.UserRole
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthRepository @Inject constructor(
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val userRepository: UserRepository
 ) {
     val currentUser: FirebaseUser?
         get() = firebaseAuth.currentUser
@@ -38,6 +41,9 @@ class AuthRepository @Inject constructor(
             val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
             val user = result.user
             if (user != null) {
+                userRepository.createUserDocument(
+                    User(uid = user.uid, email = email, role = UserRole.ADMIN)
+                )
                 Result.success(user)
             } else {
                 Result.failure(Exception("Registration failed: User is null"))

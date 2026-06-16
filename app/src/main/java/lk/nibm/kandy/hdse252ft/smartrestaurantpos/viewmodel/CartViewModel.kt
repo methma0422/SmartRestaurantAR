@@ -24,6 +24,15 @@ class CartViewModel @Inject constructor(
     private val _tableNumber = MutableStateFlow("")
     val tableNumber: StateFlow<String> = _tableNumber.asStateFlow()
 
+    private val _isTableLocked = MutableStateFlow(false)
+    val isTableLocked: StateFlow<Boolean> = _isTableLocked.asStateFlow()
+
+    private val _isPlacingOrder = MutableStateFlow(false)
+    val isPlacingOrder: StateFlow<Boolean> = _isPlacingOrder.asStateFlow()
+
+    private val _placeOrderError = MutableStateFlow<String?>(null)
+    val placeOrderError: StateFlow<String?> = _placeOrderError.asStateFlow()
+
     val totalAmount: Double
         get() = _cartItems.value.sumOf { it.menuItem.price * it.quantity }
 
@@ -58,19 +67,44 @@ class CartViewModel @Inject constructor(
     }
 
     fun setTableNumber(number: String) {
-        _tableNumber.value = number
+        if (!_isTableLocked.value) {
+            _tableNumber.value = number
+        }
     }
 
-    fun placeOrder(onSuccess: () -> Unit) {
+    fun setTableFromQr(tableNumber: Int) {
+        if (tableNumber > 0) {
+            _tableNumber.value = tableNumber.toString()
+            _isTableLocked.value = true
+        }
+    }
+
+    fun placeOrder(onSuccess: (String) -> Unit) {
         viewModelScope.launch {
-            if (_cartItems.value.isNotEmpty() && _tableNumber.value.isNotBlank()) {
-                orderRepository.placeOrder(
+            if (_cartItems.value.isEmpty()) {
+                _placeOrderError.value = "Your cart is empty"
+                return@launch
+            }
+            if (_tableNumber.value.isBlank()) {
+                _placeOrderError.value = "Enter a table number before placing the order"
+                return@launch
+            }
+
+            _isPlacingOrder.value = true
+            _placeOrderError.value = null
+
+            try {
+                val orderId = orderRepository.placeOrder(
                     items = _cartItems.value,
                     tableNumber = _tableNumber.value,
                     totalAmount = totalAmount
                 )
                 _cartItems.value = emptyList()
-                onSuccess()
+                onSuccess(orderId)
+            } catch (e: Exception) {
+                _placeOrderError.value = e.localizedMessage ?: "Unable to place order"
+            } finally {
+                _isPlacingOrder.value = false
             }
         }
     }

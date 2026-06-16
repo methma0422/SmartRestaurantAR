@@ -149,7 +149,7 @@ fun LoginScreen(
             Button(
                 onClick = {
                     viewModel.login {
-                        navController.navigate(Screen.Home.route) {
+                        navController.navigate(Screen.AdminDashboard.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }

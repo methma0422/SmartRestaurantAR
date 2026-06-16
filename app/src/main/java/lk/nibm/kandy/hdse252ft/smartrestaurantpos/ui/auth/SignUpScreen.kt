@@ -149,7 +149,7 @@ fun SignUpScreen(
             Button(
                 onClick = {
                     viewModel.register {
-                        navController.navigate(Screen.Home.route) {
+                        navController.navigate(Screen.AdminDashboard.route) {
                             popUpTo(Screen.SignUp.route) { inclusive = true }
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }

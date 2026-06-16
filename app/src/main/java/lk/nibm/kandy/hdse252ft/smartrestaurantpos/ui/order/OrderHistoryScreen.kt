@@ -17,6 +17,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.RestaurantBottomBar
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.navigateToTopLevel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.OrderHistoryViewModel
 import java.text.SimpleDateFormat
@@ -29,6 +32,8 @@ fun OrderHistoryScreen(
     viewModel: OrderHistoryViewModel = hiltViewModel()
 ) {
     val orders by viewModel.orders.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    val errorMessage by viewModel.errorMessage.collectAsState()
 
     Scaffold(
         topBar = {
@@ -41,11 +46,47 @@ fun OrderHistoryScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
+        },
+        bottomBar = {
+            RestaurantBottomBar(currentRoute = Screen.OrderHistory.route) { route ->
+                navController.navigateToTopLevel(route)
+            }
         }
     ) { padding ->
-        if (orders.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No past orders found", style = MaterialTheme.typography.bodyLarge)
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = GoldPrimary)
+            }
+        } else if (errorMessage != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+        } else if (orders.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "No past orders found",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         } else {
             LazyColumn(

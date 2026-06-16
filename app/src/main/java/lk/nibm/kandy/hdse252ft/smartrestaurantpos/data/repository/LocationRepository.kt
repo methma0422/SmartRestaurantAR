@@ -3,6 +3,8 @@ package lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository
 import android.annotation.SuppressLint
 import android.location.Location
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -14,8 +16,10 @@ class LocationRepository @Inject constructor(
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): Location? {
         return try {
-            // Task.await() requires 'kotlinx-coroutines-play-services' which is included in play-services-location
-            fusedLocationClient.lastLocation.await()
+            fusedLocationClient
+                .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                .await()
+                ?: fusedLocationClient.lastLocation.await()
         } catch (e: Exception) {
             null
         }

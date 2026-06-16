@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
@@ -25,7 +26,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.CartItem
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.RestaurantBottomBar
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.navigateToTopLevel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.CartViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
@@ -37,12 +40,15 @@ import com.google.accompanist.permissions.shouldShowRationale
 @Composable
 fun CartScreen(
     navController: NavController,
+    tableNumber: Int = 0,
     viewModel: CartViewModel = hiltViewModel()
 ) {
     val cartItems by viewModel.cartItems.collectAsState()
-    val tableNumber by viewModel.tableNumber.collectAsState()
+    val tableNumberText by viewModel.tableNumber.collectAsState()
+    val isTableLocked by viewModel.isTableLocked.collectAsState()
+    val isPlacingOrder by viewModel.isPlacingOrder.collectAsState()
+    val placeOrderError by viewModel.placeOrderError.collectAsState()
 
-    // Location permissions
     val locationPermissions = rememberMultiplePermissionsState(
         permissions = listOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
@@ -75,41 +81,63 @@ fun CartScreen(
                     tonalElevation = 8.dp,
                     color = MaterialTheme.colorScheme.surface
                 ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Total Amount", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Rs. ${viewModel.totalAmount}",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = GoldPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                if (locationPermissions.allPermissionsGranted) {
-                                    viewModel.placeOrder {
-                                        navController.navigate(Screen.OrderHistory.route) {
-                                            popUpTo(Screen.Menu.route)
+                    Column {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Total Amount", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Rs. ${viewModel.totalAmount}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = GoldPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = {
+                                    viewModel.placeOrder { orderId ->
+                                        navController.navigate(
+                                            Screen.OrderConfirmation.createRoute(orderId)
+                                        ) {
+                                            popUpTo(Screen.Cart.createRoute(tableNumber)) { inclusive = true }
                                         }
                                     }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = tableNumberText.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (isPlacingOrder) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 } else {
-                                    locationPermissions.launchMultiplePermissionRequest()
+                                    Text(
+                                        text = "PLACE ORDER",
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = tableNumber.isNotBlank() && locationPermissions.allPermissionsGranted,
-                            colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(
-                                if (locationPermissions.allPermissionsGranted) "PLACE ORDER" else "ENABLE LOCATION",
-                                fontWeight = FontWeight.Bold
-                            )
+                            }
+                            if (placeOrderError != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = placeOrderError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        RestaurantBottomBar(
+                            currentRoute = Screen.Cart.createRoute(tableNumber),
+                            tableNumber = tableNumber
+                        ) { route ->
+                            navController.navigateToTopLevel(route)
                         }
                     }
                 }
@@ -142,24 +170,37 @@ fun CartScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         OutlinedTextField(
-                            value = tableNumber,
+                            value = tableNumberText,
                             onValueChange = viewModel::setTableNumber,
-                            label = { Text("Enter Table Number") },
+                            label = { Text(if (isTableLocked) "Table (from QR)" else "Enter Table Number") },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(12.dp),
+                            readOnly = isTableLocked,
+                            enabled = !isTableLocked,
+                            trailingIcon = {
+                                if (isTableLocked) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = "Locked",
+                                        tint = GoldPrimary
+                                    )
+                                }
+                            },
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary)
                         )
-                        IconButton(
-                            onClick = { navController.navigate(Screen.QRScanner.route) },
-                            modifier = Modifier
-                                .size(56.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = "Scan QR",
-                                tint = GoldPrimary
-                            )
+                        if (!isTableLocked) {
+                            IconButton(
+                                onClick = { navController.navigate(Screen.QRScanner.route) },
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = "Scan QR",
+                                    tint = GoldPrimary
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -182,7 +223,6 @@ fun CartScreen(
         }
     }
 
-    // Permission rationale dialog
     if (locationPermissions.shouldShowRationale) {
         AlertDialog(
             onDismissRequest = { },

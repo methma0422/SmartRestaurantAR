@@ -31,12 +31,15 @@ class OrderRepository @Inject constructor(
         entities.map { it.toDomainModel() }
     }
 
-    suspend fun placeOrder(items: List<CartItem>, tableNumber: String, totalAmount: Double) {
+    suspend fun getOrderById(orderId: String): Order? {
+        return orderDao.getOrderById(orderId)?.toDomainModel()
+    }
+
+    suspend fun placeOrder(items: List<CartItem>, tableNumber: String, totalAmount: Double): String {
         val location = locationRepository.getCurrentLocation()
-        val userId = authRepository.currentUserId
         val order = Order(
             id = UUID.randomUUID().toString(),
-            userId = userId,
+            userId = authRepository.currentUserId,
             items = items,
             tableNumber = tableNumber,
             latitude = location?.latitude,
@@ -46,38 +49,37 @@ class OrderRepository @Inject constructor(
             timestamp = System.currentTimeMillis()
         )
 
-        // Save to Local DB
-        orderDao.insertOrder(
-            OrderEntity(
-                id = order.id,
-                userId = order.userId,
-                items = order.items,
-                tableNumber = order.tableNumber,
-                latitude = order.latitude,
-                longitude = order.longitude,
-                totalAmount = order.totalAmount,
-                status = order.status,
-                timestamp = order.timestamp
-            )
-        )
+        orderDao.insertOrder(order.toEntity())
 
-        // Sync to Firestore
         try {
             firestore.collection("orders").document(order.id).set(order).await()
         } catch (e: Exception) {
             e.printStackTrace()
         }
+
+        return order.id
     }
 
-    fun startListeningToOrders() {
-        val userId = authRepository.currentUserId
-        if (userId.isEmpty()) return
+    suspend fun updateOrderStatus(orderId: String, status: OrderStatus) {
+        val existing = orderDao.getOrderById(orderId)
+            ?: throw IllegalStateException("Order not found locally")
 
-        // Stop existing listener if any
+        val updated = existing.copy(status = status)
+        orderDao.insertOrder(updated)
+
+        try {
+            firestore.collection("orders").document(orderId)
+                .update("status", status.name).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    fun startListeningToAllOrders() {
         orderListener?.remove()
 
         orderListener = firestore.collection("orders")
-            .whereEqualTo("userId", userId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     error.printStackTrace()
@@ -88,27 +90,31 @@ class OrderRepository @Inject constructor(
                     val remoteOrders = querySnapshot.toObjects(Order::class.java)
                     CoroutineScope(Dispatchers.IO).launch {
                         remoteOrders.forEach { order ->
-                            orderDao.insertOrder(
-                                OrderEntity(
-                                    id = order.id,
-                                    userId = order.userId,
-                                    items = order.items,
-                                    tableNumber = order.tableNumber,
-                                    latitude = order.latitude,
-                                    longitude = order.longitude,
-                                    totalAmount = order.totalAmount,
-                                    status = order.status,
-                                    timestamp = order.timestamp
-                                )
-                            )
+                            orderDao.insertOrder(order.toEntity())
                         }
                     }
                 }
             }
     }
 
+    fun startListeningToOrders() {
+        startListeningToAllOrders()
+    }
+
     fun stopListeningToOrders() {
         orderListener?.remove()
         orderListener = null
     }
+
+    private fun Order.toEntity() = OrderEntity(
+        id = id,
+        userId = userId,
+        items = items,
+        tableNumber = tableNumber,
+        latitude = latitude,
+        longitude = longitude,
+        totalAmount = totalAmount,
+        status = status,
+        timestamp = timestamp
+    )
 }
