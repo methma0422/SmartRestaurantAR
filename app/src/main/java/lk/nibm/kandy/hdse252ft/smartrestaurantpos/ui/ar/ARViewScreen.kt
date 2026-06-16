@@ -75,7 +75,7 @@ fun ARViewScreen(
     val item = menuItems.find { it.id == itemId }
     val cameraPermission = rememberPermissionState(android.Manifest.permission.CAMERA)
     val isArSupported = remember(context) {
-        context.packageManager.hasSystemFeature("android.hardware.camera.ar")
+        true
     }
 
     LaunchedEffect(Unit) {
@@ -316,7 +316,7 @@ fun ARViewScreen(
                                         val modelNode = ModelNode(
                                             modelInstance = modelInstance
                                         ).apply {
-                                            scale = io.github.sceneview.math.Scale(0.3f, 0.3f, 0.3f)
+                                            scale = io.github.sceneview.math.Scale(0.6f, 0.6f, 0.6f)
                                             isEditable = true
                                         }
                                         anchorNode.addChildNode(modelNode)
