@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -161,6 +162,11 @@ fun MenuScreen(
                         }
                     }
                     IconButton(onClick = {
+                        navController.navigate(Screen.Login.route)
+                    }) {
+                        Icon(Icons.Default.Person, contentDescription = "Admin", tint = GoldPrimary)
+                    }
+                    IconButton(onClick = {
                         navController.navigate(Screen.Cart.createRoute(tableNumber))
                     }) {
                         Icon(Icons.Default.ShoppingCart, contentDescription = "Cart", tint = GoldPrimary)
@@ -169,148 +175,150 @@ fun MenuScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
 
-            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Categories",
-                        color = CreamWhite,
-                        fontFamily = FontFamily.Serif,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "Swipe list >>",
-                        color = GoldPrimary,
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                ScrollableTabRow(
-                    selectedTabIndex = categoryPreview.indexOf(selectedCategory).coerceAtLeast(0),
-                    containerColor = Color.Transparent,
-                    contentColor = GoldPrimary,
-                    edgePadding = 0.dp,
-                    divider = {},
-                    indicator = {}
-                ) {
-                    categoryPreview.forEach { category ->
-                        val selected = selectedCategory == category
-                        Tab(
-                            selected = selected,
-                            onClick = { viewModel.onCategorySelect(category) },
-                            selectedContentColor = GoldPrimary,
-                            unselectedContentColor = CreamMuted,
-                            modifier = Modifier
-                                .padding(end = 10.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(if (selected) GoldPrimary.copy(alpha = 0.14f) else Color.Transparent)
-                        ) {
-                            CategoryChipText(
-                                text = category,
-                                selected = selected,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Search dishes...", color = CreamMuted) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CreamMuted) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xFF1B1715),
-                        unfocusedContainerColor = Color(0xFF1B1715),
-                        focusedBorderColor = GoldPrimary,
-                        unfocusedBorderColor = Color(0xFF2E2722),
-                        focusedTextColor = CreamWhite,
-                        unfocusedTextColor = CreamWhite
-                    )
-                )
-
-                if (isSyncing) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    LinearProgressIndicator(
-                        modifier = Modifier.fillMaxWidth(),
-                        color = GoldPrimary,
-                        trackColor = Color(0x332A2520)
-                    )
-                }
-
-                if (syncError != null) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = syncError!!,
-                        color = Color(0xFFFFA69E),
-                        fontSize = 12.sp
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    FilterChip(
-                        selected = dietaryFilter == DietaryFilter.All,
-                        onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.All) },
-                        label = { Text("All") }
-                    )
-                    FilterChip(
-                        selected = dietaryFilter == DietaryFilter.Vegetarian,
-                        onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.Vegetarian) },
-                        label = { Text("Veg") }
-                    )
-                    FilterChip(
-                        selected = dietaryFilter == DietaryFilter.NonVegetarian,
-                        onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.NonVegetarian) },
-                        label = { Text("Non") }
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = Color(0xFF201B16)
-                    ) {
-                        Text(
-                            text = "01",
-                            color = CreamMuted,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = selectedCategory,
-                    color = CreamWhite,
-                    fontFamily = FontFamily.Serif,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Categories",
+                                color = CreamWhite,
+                                fontFamily = FontFamily.Serif,
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Swipe list >>",
+                                color = GoldPrimary,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        ScrollableTabRow(
+                            selectedTabIndex = categoryPreview.indexOf(selectedCategory).coerceAtLeast(0),
+                            containerColor = Color.Transparent,
+                            contentColor = GoldPrimary,
+                            edgePadding = 0.dp,
+                            divider = {},
+                            indicator = {}
+                        ) {
+                            categoryPreview.forEach { category ->
+                                val selected = selectedCategory == category
+                                Tab(
+                                    selected = selected,
+                                    onClick = { viewModel.onCategorySelect(category) },
+                                    selectedContentColor = GoldPrimary,
+                                    unselectedContentColor = CreamMuted,
+                                    modifier = Modifier
+                                        .padding(end = 8.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (selected) GoldPrimary.copy(alpha = 0.12f) else Color.Transparent)
+                                ) {
+                                    CategoryChipText(
+                                        text = category,
+                                        selected = selected,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = viewModel::onSearchQueryChange,
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Search dishes...", color = CreamMuted) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = CreamMuted) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1B1715),
+                                unfocusedContainerColor = Color(0xFF1B1715),
+                                focusedBorderColor = GoldPrimary,
+                                unfocusedBorderColor = Color(0xFF2E2722),
+                                focusedTextColor = CreamWhite,
+                                unfocusedTextColor = CreamWhite
+                            )
+                        )
+
+                        if (isSyncing) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = GoldPrimary,
+                                trackColor = Color(0x332A2520)
+                            )
+                        }
+
+                        if (syncError != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = syncError!!,
+                                color = Color(0xFFFFA69E),
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(18.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = dietaryFilter == DietaryFilter.All,
+                                onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.All) },
+                                label = { Text("All") }
+                            )
+                            FilterChip(
+                                selected = dietaryFilter == DietaryFilter.Vegetarian,
+                                onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.Vegetarian) },
+                                label = { Text("Veg") }
+                            )
+                            FilterChip(
+                                selected = dietaryFilter == DietaryFilter.NonVegetarian,
+                                onClick = { viewModel.onDietaryFilterSelect(DietaryFilter.NonVegetarian) },
+                                label = { Text("Non") }
+                            )
+                            Spacer(modifier = Modifier.weight(1f))
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = Color(0xFF201B16)
+                            ) {
+                                Text(
+                                    text = "01",
+                                    color = CreamMuted,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = selectedCategory,
+                            color = CreamWhite,
+                            fontFamily = FontFamily.Serif,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
                 if (featuredItems.isNotEmpty()) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -351,23 +359,7 @@ fun MenuScreen(
                     }
                 }
 
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Admin",
-                            color = CreamMuted.copy(alpha = 0.4f),
-                            fontSize = 11.sp,
-                            modifier = Modifier.clickable {
-                                navController.navigate(Screen.Login.route)
-                            }
-                        )
-                    }
-                }
+
             }
         }
 
@@ -400,8 +392,8 @@ private fun CategoryChipText(
     ) {
         Box(
             modifier = Modifier
-                .size(if (selected) 64.dp else 50.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .size(if (selected) 48.dp else 40.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(if (selected) GoldPrimary else Color(0xFF211C19)),
             contentAlignment = Alignment.Center
         ) {
@@ -409,13 +401,13 @@ private fun CategoryChipText(
                 text = text.firstOrNull()?.uppercaseChar()?.toString().orEmpty().ifEmpty { "?" },
                 color = if (selected) Color(0xFF211C19) else GoldPrimary,
                 fontWeight = FontWeight.Bold,
-                fontSize = if (selected) 22.sp else 16.sp
+                fontSize = if (selected) 16.sp else 13.sp
             )
         }
         Text(
             text = text.ifBlank { "UNCATEGORIZED" }.uppercase(),
             color = if (selected) GoldPrimary else CreamMuted,
-            fontSize = 10.sp,
+            fontSize = 9.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
