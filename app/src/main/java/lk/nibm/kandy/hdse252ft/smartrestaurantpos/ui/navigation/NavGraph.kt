@@ -23,6 +23,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.home.HomeScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.menu.MenuScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.order.OrderConfirmationScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.order.OrderHistoryScreen
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.order.CheckoutScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.qr.QRScannerScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.splash.SplashScreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.CartViewModel
@@ -122,6 +123,16 @@ fun NavGraph(deepLinkTableNumber: Int? = null) {
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString(ORDER_ID_ARG) ?: ""
             OrderConfirmationScreen(
+                navController = navController,
+                orderId = orderId
+            )
+        }
+        composable(
+            route = Screen.Checkout.route,
+            arguments = listOf(navArgument(ORDER_ID_ARG) { type = NavType.StringType })
+        ) { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString(ORDER_ID_ARG) ?: ""
+            CheckoutScreen(
                 navController = navController,
                 orderId = orderId
             )

@@ -174,6 +174,35 @@ class OrderRepository @Inject constructor(
         orderListener = null
     }
 
+    suspend fun checkoutOrder(
+        orderId: String,
+        paymentMethod: String,
+        serviceCharge: Double,
+        taxAmount: Double,
+        finalTotal: Double
+    ) {
+        val existing = orderDao.getOrderById(orderId)
+            ?: throw IllegalStateException("Order not found locally")
+
+        val updated = existing.copy(
+            status = OrderStatus.DELIVERED,
+            isPaid = true,
+            paymentMethod = paymentMethod,
+            serviceCharge = serviceCharge,
+            taxAmount = taxAmount,
+            finalTotal = finalTotal
+        )
+        orderDao.insertOrder(updated)
+
+        try {
+            firestore.collection("orders").document(orderId)
+                .set(updated.toDomainModel()).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
     private fun Order.toEntity() = OrderEntity(
         id = id,
         userId = userId,
@@ -184,6 +213,11 @@ class OrderRepository @Inject constructor(
         totalAmount = totalAmount,
         discount = discount,
         status = status,
-        timestamp = timestamp
+        timestamp = timestamp,
+        paymentMethod = paymentMethod,
+        isPaid = isPaid,
+        serviceCharge = serviceCharge,
+        taxAmount = taxAmount,
+        finalTotal = finalTotal
     )
 }

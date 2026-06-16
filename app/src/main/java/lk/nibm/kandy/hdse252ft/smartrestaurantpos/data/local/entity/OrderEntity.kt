@@ -17,7 +17,12 @@ data class OrderEntity(
     val totalAmount: Double,
     val discount: Double = 0.0,
     val status: OrderStatus,
-    val timestamp: Long
+    val timestamp: Long,
+    val paymentMethod: String? = null,
+    val isPaid: Boolean = false,
+    val serviceCharge: Double = 0.0,
+    val taxAmount: Double = 0.0,
+    val finalTotal: Double = 0.0
 )
 
 fun OrderEntity.toDomainModel() = Order(
@@ -30,5 +35,10 @@ fun OrderEntity.toDomainModel() = Order(
     totalAmount = totalAmount,
     discount = discount,
     status = status,
-    timestamp = timestamp
+    timestamp = timestamp,
+    paymentMethod = paymentMethod,
+    isPaid = isPaid,
+    serviceCharge = serviceCharge,
+    taxAmount = taxAmount,
+    finalTotal = finalTotal
 )

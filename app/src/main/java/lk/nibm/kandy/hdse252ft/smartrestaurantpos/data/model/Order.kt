@@ -10,5 +10,10 @@ data class Order(
     val totalAmount: Double = 0.0,
     val discount: Double = 0.0,
     val status: OrderStatus = OrderStatus.PENDING,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val paymentMethod: String? = null,
+    val isPaid: Boolean = false,
+    val serviceCharge: Double = 0.0,
+    val taxAmount: Double = 0.0,
+    val finalTotal: Double = 0.0
 )

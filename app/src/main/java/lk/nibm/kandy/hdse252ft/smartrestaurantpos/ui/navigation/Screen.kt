@@ -22,6 +22,9 @@ sealed class Screen(val route: String) {
     object OrderConfirmation : Screen("orderConfirmation/{orderId}") {
         fun createRoute(orderId: String) = "orderConfirmation/$orderId"
     }
+    object Checkout : Screen("checkout/{orderId}") {
+        fun createRoute(orderId: String) = "checkout/$orderId"
+    }
     object AdminDashboard : Screen("adminDashboard")
     object AdminMenu : Screen("adminMenu")
     object AdminMenuForm : Screen("adminMenuForm?itemId={itemId}") {

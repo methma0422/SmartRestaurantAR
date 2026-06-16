@@ -323,6 +323,16 @@ fun OrderConfirmationScreen(
                                 DetailRow("Status", currentOrder?.status?.name ?: "PENDING")
                             }
 
+                            if (currentOrder?.isPaid == true) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    DetailRow("Paid via", currentOrder.paymentMethod ?: "Cash")
+                                    DetailRow("Payment Status", "PAID")
+                                }
+                            }
+
                             HorizontalDivider(color = Color(0xFF2E2722))
 
                             // Items List Header
@@ -440,28 +450,56 @@ fun OrderConfirmationScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
+                                val subtotal = currentOrder?.totalAmount ?: 0.0
+                                val discount = currentOrder?.discount ?: 0.0
+                                val netAmount = (subtotal - discount).coerceAtLeast(0.0)
+
+                                val taxLabel: String
+                                val taxValue: Double
+                                val scValue: Double
+                                val grandTotalValue: Double
+
+                                if (currentOrder?.isPaid == true) {
+                                    taxLabel = "Tax (VAT 10%)"
+                                    taxValue = currentOrder.taxAmount
+                                    scValue = currentOrder.serviceCharge
+                                    grandTotalValue = currentOrder.finalTotal
+                                } else {
+                                    taxLabel = "Estimated Tax (VAT 10%)"
+                                    taxValue = netAmount * 0.10
+                                    scValue = netAmount * 0.05
+                                    grandTotalValue = netAmount + taxValue + scValue
+                                }
+
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text("Subtotal", color = CreamMuted, fontSize = 14.sp)
-                                    Text("Rs. ${currentOrder?.totalAmount ?: 0.0}", color = CreamWhite, fontSize = 14.sp)
+                                    Text(String.format(Locale.getDefault(), "Rs. %,.2f", subtotal), color = CreamWhite, fontSize = 14.sp)
                                 }
-                                if ((currentOrder?.discount ?: 0.0) > 0.0) {
+                                if (discount > 0.0) {
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text("Discount", color = CreamMuted, fontSize = 14.sp)
-                                        Text("- Rs. ${currentOrder?.discount ?: 0.0}", color = Color(0xFFFFA69E), fontSize = 14.sp)
+                                        Text(String.format(Locale.getDefault(), "- Rs. %,.2f", discount), color = Color(0xFFFFA69E), fontSize = 14.sp)
                                     }
                                 }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("Tax (VAT 0%)", color = CreamMuted, fontSize = 14.sp)
-                                    Text("Rs. 0.00", color = CreamWhite, fontSize = 14.sp)
+                                    Text(taxLabel, color = CreamMuted, fontSize = 14.sp)
+                                    Text(String.format(Locale.getDefault(), "Rs. %,.2f", taxValue), color = CreamWhite, fontSize = 14.sp)
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(if (currentOrder?.isPaid == true) "Service Charge (5%)" else "Est. Service Charge (5%)", color = CreamMuted, fontSize = 14.sp)
+                                    Text(String.format(Locale.getDefault(), "Rs. %,.2f", scValue), color = CreamWhite, fontSize = 14.sp)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(
@@ -469,10 +507,9 @@ fun OrderConfirmationScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("Total Amount", fontWeight = FontWeight.Bold, color = GoldPrimary, fontSize = 16.sp)
-                                    val netTotal = (currentOrder?.totalAmount ?: 0.0) - (currentOrder?.discount ?: 0.0)
+                                    Text(if (currentOrder?.isPaid == true) "Total Paid" else "Est. Total Amount", fontWeight = FontWeight.Bold, color = GoldPrimary, fontSize = 16.sp)
                                     Text(
-                                        text = "Rs. ${netTotal.coerceAtLeast(0.0)}",
+                                        text = String.format(Locale.getDefault(), "Rs. %,.2f", grandTotalValue),
                                         fontWeight = FontWeight.ExtraBold,
                                         color = GoldPrimary,
                                         fontSize = 18.sp,
@@ -530,7 +567,7 @@ fun OrderConfirmationScreen(
                                     val (actionText, actionColor, onActionClick) = when (currentOrder.status) {
                                         OrderStatus.PENDING -> Triple("CONFIRM ORDER", GoldPrimary) { viewModel.confirmOrder(currentOrder.id) }
                                         OrderStatus.CONFIRMED -> Triple("MARK READY", GoldPrimary) { viewModel.markReady(currentOrder.id) }
-                                        OrderStatus.READY -> Triple("CHECKOUT ORDER", GoldPrimary) { viewModel.completeOrder(currentOrder.id) }
+                                        OrderStatus.READY -> Triple("CHECKOUT ORDER", GoldPrimary) { navController.navigate(Screen.Checkout.createRoute(currentOrder.id)) }
                                         else -> Triple("COMPLETE", GoldPrimary) {}
                                     }
 
@@ -556,45 +593,77 @@ fun OrderConfirmationScreen(
                         }
                     }
 
-                    if (isEditable && currentOrder != null) {
-                        Row(
+                    val isActiveOrder = currentOrder != null && 
+                            (currentOrder.status == OrderStatus.PENDING || 
+                             currentOrder.status == OrderStatus.CONFIRMED || 
+                             currentOrder.status == OrderStatus.READY)
+
+                    if (isActiveOrder && currentOrder != null) {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Button(
                                 onClick = {
-                                    viewModel.cancelOrder(currentOrder.id)
+                                    navController.navigate(Screen.Checkout.createRoute(currentOrder.id))
                                 },
-                                modifier = Modifier.weight(1f),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("CANCEL ORDER", fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-
-                            Button(
-                                onClick = {
-                                    val table = currentOrder.tableNumber.toIntOrNull() ?: tableNumber
-                                    navController.navigate(Screen.Menu.createRoute(table)) {
-                                        popUpTo(Screen.OrderConfirmation.route) { inclusive = true }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("ADD MORE ITEMS", fontWeight = FontWeight.Bold, color = Color(0xFF1E1B18))
+                                Text("PROCEED TO CHECKOUT / PAY", fontWeight = FontWeight.Bold, color = Color(0xFF1E1B18))
+                            }
+
+                            if (isEditable) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.cancelOrder(currentOrder.id)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("CANCEL ORDER", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                                    }
+
+                                    Button(
+                                        onClick = {
+                                            val table = currentOrder.tableNumber.toIntOrNull() ?: tableNumber
+                                            navController.navigate(Screen.Menu.createRoute(table)) {
+                                                popUpTo(Screen.OrderConfirmation.route) { inclusive = true }
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2520)),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("ADD ITEMS", fontWeight = FontWeight.Bold, color = CreamWhite, fontSize = 12.sp)
+                                    }
+                                }
+                            } else {
+                                Button(
+                                    onClick = {
+                                        val table = currentOrder.tableNumber.toIntOrNull() ?: tableNumber
+                                        navController.navigate(Screen.Menu.createRoute(table)) {
+                                            popUpTo(Screen.OrderConfirmation.route) { inclusive = true }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2520)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text("ADD MORE ITEMS", fontWeight = FontWeight.Bold, color = CreamWhite)
+                                }
                             }
                         }
-                    } else {
-                        val isActiveOrder = currentOrder != null && 
-                                (currentOrder.status == OrderStatus.PENDING || 
-                                 currentOrder.status == OrderStatus.CONFIRMED || 
-                                 currentOrder.status == OrderStatus.READY)
-                        
+                    } else if (currentOrder != null) {
                         Button(
                             onClick = {
-                                val table = currentOrder?.tableNumber?.toIntOrNull() ?: tableNumber
+                                val table = currentOrder.tableNumber.toIntOrNull() ?: tableNumber
                                 navController.navigate(Screen.Menu.createRoute(table)) {
                                     popUpTo(Screen.OrderConfirmation.route) { inclusive = true }
                                 }
@@ -604,7 +673,7 @@ fun OrderConfirmationScreen(
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(
-                                text = if (isActiveOrder) "ADD MORE ITEMS" else "BACK TO MENU",
+                                text = "BACK TO MENU",
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF1E1B18)
                             )

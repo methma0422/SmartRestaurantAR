@@ -45,6 +45,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.AdminOrderViewModel
 import java.text.SimpleDateFormat
@@ -224,7 +225,7 @@ fun AdminOrderScreen(
                                 isUpdating = updatingId == order.id,
                                 onConfirm = { viewModel.confirmOrder(order.id) },
                                 onReady = { viewModel.markReady(order.id) },
-                                onComplete = { viewModel.completeOrder(order.id) },
+                                onComplete = { navController.navigate(Screen.Checkout.createRoute(order.id)) },
                                 onCancel = { viewModel.cancelOrder(order.id) }
                             )
                         }

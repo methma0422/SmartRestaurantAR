@@ -20,7 +20,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.local.entity.toEntity
 
 @Database(
     entities = [MenuItemEntity::class, OrderEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
