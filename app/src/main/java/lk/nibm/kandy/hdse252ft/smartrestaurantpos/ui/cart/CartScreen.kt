@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -30,13 +31,10 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.RestaurantBottom
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.navigateToTopLevel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamMuted
+import androidx.compose.ui.graphics.Color
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.CartViewModel
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.google.accompanist.permissions.shouldShowRationale
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     navController: NavController,
@@ -48,19 +46,8 @@ fun CartScreen(
     val isTableLocked by viewModel.isTableLocked.collectAsState()
     val isPlacingOrder by viewModel.isPlacingOrder.collectAsState()
     val placeOrderError by viewModel.placeOrderError.collectAsState()
+    val activeOrder by viewModel.activeOrder.collectAsState()
 
-    val locationPermissions = rememberMultiplePermissionsState(
-        permissions = listOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-    )
-
-    LaunchedEffect(Unit) {
-        if (!locationPermissions.allPermissionsGranted) {
-            locationPermissions.launchMultiplePermissionRequest()
-        }
-    }
 
     Scaffold(
         topBar = {
@@ -119,7 +106,7 @@ fun CartScreen(
                                     )
                                 } else {
                                     Text(
-                                        text = "PLACE ORDER",
+                                        text = if (activeOrder != null) "ADD TO ACTIVE ORDER" else "PLACE ORDER",
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -159,47 +146,99 @@ fun CartScreen(
             ) {
                 item {
                     Text(
-                        text = "Table Selection",
+                        text = "Table Assignment",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = tableNumberText,
-                            onValueChange = viewModel::setTableNumber,
-                            label = { Text(if (isTableLocked) "Table (from QR)" else "Enter Table Number") },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            readOnly = isTableLocked,
-                            enabled = !isTableLocked,
-                            trailingIcon = {
-                                if (isTableLocked) {
-                                    Icon(
-                                        Icons.Default.Lock,
-                                        contentDescription = "Locked",
-                                        tint = GoldPrimary
+                    if (isTableLocked && tableNumberText.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1E1B18),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, GoldPrimary.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Table Locked",
+                                    tint = GoldPrimary,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = "TABLE ASSIGNED",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = GoldPrimary,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Text(
+                                        text = "Table $tableNumberText",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 18.sp,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "This device is locked to Table $tableNumberText for all orders.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = CreamMuted
                                     )
                                 }
-                            },
-                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = GoldPrimary)
-                        )
-                        if (!isTableLocked) {
-                            IconButton(
-                                onClick = { navController.navigate(Screen.QRScanner.route) },
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                            }
+                        }
+                    } else {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1E1B18),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.QrCodeScanner,
-                                    contentDescription = "Scan QR",
-                                    tint = GoldPrimary
+                                    contentDescription = "Scan Required",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(36.dp)
                                 )
+                                Text(
+                                    text = "SCAN QR CODE TO ORDER",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Text(
+                                    text = "You must scan the QR code located on your dining table to lock this device and start placing orders.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    textAlign = TextAlign.Center,
+                                    color = CreamMuted
+                                )
+                                Button(
+                                    onClick = { navController.navigate(Screen.QRScanner.route) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1E1B18)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "SCAN TABLE QR",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E1B18)
+                                    )
+                                }
                             }
                         }
                     }
@@ -221,27 +260,6 @@ fun CartScreen(
                 }
             }
         }
-    }
-
-    if (locationPermissions.shouldShowRationale) {
-        AlertDialog(
-            onDismissRequest = { },
-            title = { Text("Location Permission Required") },
-            text = { Text("Location permission is needed to capture your GPS coordinates when placing an order. This helps us serve you better.") },
-            confirmButton = {
-                Button(
-                    onClick = { locationPermissions.launchMultiplePermissionRequest() },
-                    colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary)
-                ) {
-                    Text("Grant Permission")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { navController.popBackStack() }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 }
 

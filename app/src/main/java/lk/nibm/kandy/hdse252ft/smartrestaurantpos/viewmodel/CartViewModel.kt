@@ -8,15 +8,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.CartItem
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepository
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @HiltViewModel
 class CartViewModel @Inject constructor(
-    private val orderRepository: OrderRepository
+    private val orderRepository: OrderRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val sharedPrefs = context.getSharedPreferences("restaurant_prefs", Context.MODE_PRIVATE)
 
     private val _cartItems = MutableStateFlow<List<CartItem>>(emptyList())
     val cartItems: StateFlow<List<CartItem>> = _cartItems.asStateFlow()
@@ -27,11 +37,31 @@ class CartViewModel @Inject constructor(
     private val _isTableLocked = MutableStateFlow(false)
     val isTableLocked: StateFlow<Boolean> = _isTableLocked.asStateFlow()
 
+    init {
+        val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+        if (savedTable.isNotBlank()) {
+            _tableNumber.value = savedTable
+            _isTableLocked.value = true
+        }
+    }
+
     private val _isPlacingOrder = MutableStateFlow(false)
     val isPlacingOrder: StateFlow<Boolean> = _isPlacingOrder.asStateFlow()
 
     private val _placeOrderError = MutableStateFlow<String?>(null)
     val placeOrderError: StateFlow<String?> = _placeOrderError.asStateFlow()
+
+    val activeOrder: StateFlow<Order?> = combine(
+        orderRepository.getAllOrders(),
+        _tableNumber
+    ) { orders, table ->
+        orders.find { order ->
+            (order.status == OrderStatus.PENDING || 
+             order.status == OrderStatus.CONFIRMED || 
+             order.status == OrderStatus.READY) &&
+            order.tableNumber == table
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val totalAmount: Double
         get() = _cartItems.value.sumOf { it.menuItem.price * it.quantity }
@@ -67,15 +97,40 @@ class CartViewModel @Inject constructor(
     }
 
     fun setTableNumber(number: String) {
-        if (!_isTableLocked.value) {
+        val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+        if (savedTable.isBlank()) {
             _tableNumber.value = number
+        } else {
+            _tableNumber.value = savedTable
+            _isTableLocked.value = true
+            if (savedTable != number && number.isNotBlank()) {
+                android.widget.Toast.makeText(
+                    context,
+                    "This device is already locked to Table $savedTable.",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
     fun setTableFromQr(tableNumber: Int) {
         if (tableNumber > 0) {
-            _tableNumber.value = tableNumber.toString()
-            _isTableLocked.value = true
+            val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+            if (savedTable.isBlank()) {
+                _tableNumber.value = tableNumber.toString()
+                _isTableLocked.value = true
+                sharedPrefs.edit().putString("locked_table_number", tableNumber.toString()).apply()
+            } else {
+                _tableNumber.value = savedTable
+                _isTableLocked.value = true
+                if (savedTable != tableNumber.toString()) {
+                    android.widget.Toast.makeText(
+                        context,
+                        "This device is already locked to Table $savedTable.",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
     }
 
@@ -94,11 +149,34 @@ class CartViewModel @Inject constructor(
             _placeOrderError.value = null
 
             try {
-                val orderId = orderRepository.placeOrder(
-                    items = _cartItems.value,
-                    tableNumber = _tableNumber.value,
-                    totalAmount = totalAmount
-                )
+                val currentActiveOrder = activeOrder.value
+                val orderId: String
+                if (currentActiveOrder != null) {
+                    val mergedItems = currentActiveOrder.items.toMutableList()
+                    _cartItems.value.forEach { cartItem ->
+                        val existing = mergedItems.find { it.menuItem.id == cartItem.menuItem.id }
+                        if (existing != null) {
+                            val index = mergedItems.indexOf(existing)
+                            mergedItems[index] = existing.copy(quantity = existing.quantity + cartItem.quantity)
+                        } else {
+                            mergedItems.add(cartItem)
+                        }
+                    }
+                    val newTotal = mergedItems.sumOf { it.menuItem.price * it.quantity }
+                    orderRepository.updateOrderItems(
+                        orderId = currentActiveOrder.id,
+                        items = mergedItems,
+                        totalAmount = newTotal,
+                        resetTimestamp = true
+                    )
+                    orderId = currentActiveOrder.id
+                } else {
+                    orderId = orderRepository.placeOrder(
+                        items = _cartItems.value,
+                        tableNumber = _tableNumber.value,
+                        totalAmount = totalAmount
+                    )
+                }
                 _cartItems.value = emptyList()
                 onSuccess(orderId)
             } catch (e: Exception) {

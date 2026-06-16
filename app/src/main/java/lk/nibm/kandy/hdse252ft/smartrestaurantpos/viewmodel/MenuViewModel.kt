@@ -6,8 +6,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.MenuRepository
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.OrderRepository
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.repository.AuthRepository
 import javax.inject.Inject
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 enum class DietaryFilter {
     All,
@@ -17,8 +23,38 @@ enum class DietaryFilter {
 
 @HiltViewModel
 class MenuViewModel @Inject constructor(
-    private val repository: MenuRepository
+    private val repository: MenuRepository,
+    private val orderRepository: OrderRepository,
+    private val authRepository: AuthRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    private val sharedPrefs = context.getSharedPreferences("restaurant_prefs", Context.MODE_PRIVATE)
+
+    private val _tableNumber = MutableStateFlow(0)
+    val tableNumber = _tableNumber.asStateFlow()
+
+    fun setTableNumber(table: Int) {
+        val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+        if (savedTable.isNotBlank()) {
+            _tableNumber.value = savedTable.toIntOrNull() ?: 0
+        } else if (table > 0) {
+            _tableNumber.value = table
+        }
+    }
+
+    val activeOrders: StateFlow<List<Order>> = combine(
+        orderRepository.getAllOrders(),
+        _tableNumber
+    ) { orders, table ->
+        orders.filter { order ->
+            (order.status == OrderStatus.PENDING || 
+             order.status == OrderStatus.CONFIRMED || 
+             order.status == OrderStatus.READY) &&
+            (order.tableNumber == table.toString() || 
+             (order.userId.isNotBlank() && order.userId == authRepository.currentUserId))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
@@ -57,7 +93,12 @@ class MenuViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
+        val savedTable = sharedPrefs.getString("locked_table_number", "") ?: ""
+        if (savedTable.isNotBlank()) {
+            _tableNumber.value = savedTable.toIntOrNull() ?: 0
+        }
         syncMenu()
+        orderRepository.startListeningToOrders()
     }
 
     fun onSearchQueryChange(query: String) {
@@ -85,5 +126,10 @@ class MenuViewModel @Inject constructor(
                 _isSyncing.value = false
             }
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        orderRepository.stopListeningToOrders()
     }
 }

@@ -22,7 +22,6 @@ import javax.inject.Singleton
 class OrderRepository @Inject constructor(
     private val orderDao: OrderDao,
     private val firestore: FirebaseFirestore,
-    private val locationRepository: LocationRepository,
     private val authRepository: AuthRepository
 ) {
     private var orderListener: ListenerRegistration? = null
@@ -35,15 +34,20 @@ class OrderRepository @Inject constructor(
         return orderDao.getOrderById(orderId)?.toDomainModel()
     }
 
+    fun getOrderByIdFlow(orderId: String): Flow<Order?> {
+        return orderDao.getAllOrders().map { list ->
+            list.find { it.id == orderId }?.toDomainModel()
+        }
+    }
+
     suspend fun placeOrder(items: List<CartItem>, tableNumber: String, totalAmount: Double): String {
-        val location = locationRepository.getCurrentLocation()
         val order = Order(
             id = UUID.randomUUID().toString(),
             userId = authRepository.currentUserId,
             items = items,
             tableNumber = tableNumber,
-            latitude = location?.latitude,
-            longitude = location?.longitude,
+            latitude = null,
+            longitude = null,
             totalAmount = totalAmount,
             status = OrderStatus.PENDING,
             timestamp = System.currentTimeMillis()
@@ -69,7 +73,29 @@ class OrderRepository @Inject constructor(
 
         try {
             firestore.collection("orders").document(orderId)
-                .update("status", status.name).await()
+                .set(updated.toDomainModel()).await()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
+    }
+
+    suspend fun updateOrderItems(orderId: String, items: List<CartItem>, totalAmount: Double, resetTimestamp: Boolean = false) {
+        val existing = orderDao.getOrderById(orderId)
+            ?: throw IllegalStateException("Order not found locally")
+
+        val updated = existing.copy(
+            items = items,
+            totalAmount = totalAmount,
+            timestamp = if (resetTimestamp) System.currentTimeMillis() else existing.timestamp,
+            status = if (resetTimestamp) OrderStatus.PENDING else existing.status
+        )
+
+        orderDao.insertOrder(updated)
+
+        try {
+            firestore.collection("orders").document(orderId)
+                .set(updated.toDomainModel()).await()
         } catch (e: Exception) {
             e.printStackTrace()
             throw e

@@ -98,7 +98,12 @@ fun OrderHistoryScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(orders) { order ->
-                    OrderCard(order = order)
+                    OrderCard(
+                        order = order,
+                        onClick = {
+                            navController.navigate(Screen.OrderConfirmation.createRoute(order.id))
+                        }
+                    )
                 }
             }
         }
@@ -106,8 +111,9 @@ fun OrderHistoryScreen(
 }
 
 @Composable
-fun OrderCard(order: Order) {
+fun OrderCard(order: Order, onClick: () -> Unit) {
     Card(
+        onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {

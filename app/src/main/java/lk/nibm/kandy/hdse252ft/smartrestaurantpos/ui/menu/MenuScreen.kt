@@ -1,5 +1,6 @@
 package lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.menu
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,8 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -31,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -38,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -55,7 +61,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.OrderStatus
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.Screen
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.RestaurantBottomBar
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.navigation.navigateToTopLevel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamMuted
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamWhite
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldLight
@@ -82,23 +92,39 @@ fun MenuScreen(
     val dietaryFilter by viewModel.dietaryFilter.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val syncError by viewModel.syncError.collectAsState()
+    val activeOrders by viewModel.activeOrders.collectAsState()
+
+    LaunchedEffect(tableNumber) {
+        viewModel.setTableNumber(tableNumber)
+    }
 
     val featuredItems = menuItems.take(3)
     val categoryPreview = categories
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF0C0B0A),
-                        Color(0xFF171311),
-                        SurfaceDark
+    Scaffold(
+        bottomBar = {
+            RestaurantBottomBar(
+                currentRoute = Screen.Menu.createRoute(tableNumber),
+                tableNumber = tableNumber
+            ) { route ->
+                navController.navigateToTopLevel(route)
+            }
+        }
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF0C0B0A),
+                            Color(0xFF171311),
+                            SurfaceDark
+                        )
                     )
                 )
-            )
-    ) {
+        ) {
         Column(modifier = Modifier.fillMaxSize()) {
             TopAppBar(
                 title = {
@@ -344,7 +370,21 @@ fun MenuScreen(
                 }
             }
         }
+
+        if (activeOrders.isNotEmpty()) {
+            val activeOrder = activeOrders.first()
+            ActiveOrderTrackerCard(
+                order = activeOrder,
+                onClick = {
+                    navController.navigate(Screen.OrderConfirmation.createRoute(activeOrder.id))
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            )
+        }
     }
+}
 }
 
 @Composable
@@ -520,3 +560,132 @@ private fun FoodTag(text: String, tint: Color) {
         )
     }
 }
+
+@Composable
+private fun ActiveOrderTrackerCard(
+    order: Order,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val progress = when (order.status) {
+        OrderStatus.PENDING -> 0.3f
+        OrderStatus.CONFIRMED -> 0.65f
+        OrderStatus.READY -> 1.0f
+        else -> 0f
+    }
+
+    val statusTitle = when (order.status) {
+        OrderStatus.PENDING -> "Awaiting Confirmation"
+        OrderStatus.CONFIRMED -> "Cooking your Order"
+        OrderStatus.READY -> "Order is Ready!"
+        else -> "Processing"
+    }
+
+    val statusSubtitle = when (order.status) {
+        OrderStatus.PENDING -> "Sent to kitchen"
+        OrderStatus.CONFIRMED -> "Chef is preparing the food"
+        OrderStatus.READY -> "Pick up at the counter"
+        else -> "Please wait"
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B18)),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, GoldPrimary.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+            .clickable { onClick() }
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(44.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+                val pulseScale by infiniteTransition.animateFloat(
+                    initialValue = 1.0f,
+                    targetValue = 1.3f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "pulseScale"
+                )
+                val pulseAlpha by infiniteTransition.animateFloat(
+                    initialValue = 0.4f,
+                    targetValue = 0.0f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1200, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ),
+                    label = "pulseAlpha"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(GoldPrimary.copy(alpha = pulseAlpha))
+                        .align(Alignment.Center)
+                )
+
+                CircularProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.size(36.dp),
+                    color = GoldPrimary,
+                    trackColor = Color(0xFF2E2722),
+                    strokeWidth = 3.dp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = statusTitle,
+                    color = CreamWhite,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+                Text(
+                    text = statusSubtitle,
+                    color = CreamMuted,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = "Order #${order.id.takeLast(6).uppercase()}",
+                    color = GoldPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 10.sp,
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Button(
+                onClick = onClick,
+                colors = ButtonDefaults.buttonColors(containerColor = GoldPrimary),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Text(
+                    text = "TRACK",
+                    color = Color(0xFF1E1B18),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
