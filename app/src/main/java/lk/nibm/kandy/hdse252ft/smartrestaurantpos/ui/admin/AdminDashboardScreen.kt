@@ -31,13 +31,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +54,7 @@ import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.GoldPrimary
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamMuted
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.CreamWhite
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.SurfaceDark
+import lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.theme.VegGreen
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.AdminDashboardViewModel
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.viewmodel.AuthViewModel
 import java.util.Locale
@@ -207,28 +213,41 @@ fun AdminDashboardScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, Color(0xFF2E2722), RoundedCornerShape(20.dp)),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF14110F))
             ) {
-                SummaryCard(
-                    label = "Pending",
-                    count = counts.pending,
-                    color = Color(0xFFFFA726),
-                    modifier = Modifier.weight(1f)
-                )
-                SummaryCard(
-                    label = "Cooking",
-                    count = counts.confirmed,
-                    color = Color(0xFF42A5F5),
-                    modifier = Modifier.weight(1f)
-                )
-                SummaryCard(
-                    label = "Ready",
-                    count = counts.ready,
-                    color = Color(0xFF66BB6A),
-                    modifier = Modifier.weight(1f)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 16.dp, horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    QueueStatusItem(
+                        label = "Pending",
+                        count = counts.pending,
+                        color = Color(0xFFFFA726),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(modifier = Modifier.height(30.dp).width(1.dp).background(Color(0xFF2E2722)))
+                    QueueStatusItem(
+                        label = "Cooking",
+                        count = counts.confirmed,
+                        color = Color(0xFF42A5F5),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(modifier = Modifier.height(30.dp).width(1.dp).background(Color(0xFF2E2722)))
+                    QueueStatusItem(
+                        label = "Ready",
+                        count = counts.ready,
+                        color = VegGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))
@@ -241,94 +260,120 @@ fun AdminDashboardScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                AdminNavCard(
-                    title = "Menu Management",
-                    subtitle = "Add, edit, or delete items and ingredients",
-                    icon = Icons.Default.MenuBook,
-                    onClick = { navController.navigate(Screen.AdminMenu.route) }
-                )
-
-                AdminNavCard(
-                    title = "Order Queue Management",
-                    subtitle = "Track active orders, confirm, and checkout",
-                    icon = Icons.Default.Receipt,
-                    onClick = { navController.navigate(Screen.AdminOrders.route) }
-                )
-
-                AdminNavCard(
-                    title = "Table QR Codes",
-                    subtitle = "Generate and export table deep-link QR codes",
-                    icon = Icons.Default.QrCode,
-                    onClick = { navController.navigate(Screen.AdminQR.route) }
-                )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AdminNavGridCard(
+                        title = "Menu Manage",
+                        subtitle = "Dishes & Items",
+                        icon = Icons.Default.MenuBook,
+                        onClick = { navController.navigate(Screen.AdminMenu.route) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AdminNavGridCard(
+                        title = "Order Queue",
+                        subtitle = "Active Tickets",
+                        icon = Icons.Default.Receipt,
+                        onClick = { navController.navigate(Screen.AdminOrders.route) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    AdminNavGridCard(
+                        title = "Table QRs",
+                        subtitle = "Generate Codes",
+                        icon = Icons.Default.QrCode,
+                        onClick = { navController.navigate(Screen.AdminQR.route) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AdminNavGridCard(
+                        title = "Sign Out",
+                        subtitle = "Exit Admin",
+                        icon = Icons.AutoMirrored.Filled.Logout,
+                        onClick = {
+                            authViewModel.logout()
+                            navController.navigate(Screen.Menu.createRoute(0)) {
+                                popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SummaryCard(
+private fun QueueStatusItem(
     label: String,
     count: Int,
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier
-            .border(1.dp, color.copy(alpha = 0.25f), RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1B18))
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = count.toString(),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.ExtraBold,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
-                color = color
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = label,
-                color = CreamMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
+        Text(
+            text = label.uppercase(),
+            color = CreamMuted,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 0.5.sp
+        )
+        Text(
+            text = count.toString(),
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+            color = color
+        )
     }
 }
 
 @Composable
-private fun AdminNavCard(
+private fun AdminNavGridCard(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (isPressed) 0.96f else 1f, label = "scale")
+
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .border(1.dp, GoldPrimary.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF171412))
+        modifier = modifier
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .border(1.dp, GoldPrimary.copy(alpha = 0.15f), RoundedCornerShape(18.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF14110F))
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(40.dp)
                     .background(GoldPrimary.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
@@ -336,21 +381,21 @@ private fun AdminNavCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = GoldPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = title,
                     color = CreamWhite,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
+                    fontSize = 14.sp,
                     fontFamily = androidx.compose.ui.text.font.FontFamily.Serif
                 )
                 Text(
                     text = subtitle,
                     color = CreamMuted,
-                    fontSize = 12.sp
+                    fontSize = 11.sp
                 )
             }
         }

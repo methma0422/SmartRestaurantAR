@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +34,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -243,6 +245,18 @@ private fun AdminOrderCard(
     onCancel: () -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, HH:mm", Locale.getDefault())
+    val timeAgo = remember(order.timestamp) {
+        val diffMs = System.currentTimeMillis() - order.timestamp
+        val diffMins = diffMs / (1000 * 60)
+        when {
+            diffMins < 1 -> "just now"
+            diffMins < 60 -> "${diffMins}m ago"
+            else -> {
+                val diffHours = diffMins / 60
+                if (diffHours < 24) "${diffHours}h ago" else "${diffHours / 24}d ago"
+            }
+        }
+    }
 
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -271,11 +285,28 @@ private fun AdminOrderCard(
                         fontFamily = FontFamily.Serif,
                         fontSize = 15.sp
                     )
-                    Text(
-                        text = dateFormat.format(Date(order.timestamp)),
-                        color = CreamMuted,
-                        fontSize = 11.sp
-                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = dateFormat.format(Date(order.timestamp)),
+                            color = CreamMuted,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = "•",
+                            color = GoldPrimary.copy(alpha = 0.4f),
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = timeAgo,
+                            color = if (order.status == OrderStatus.PENDING && (System.currentTimeMillis() - order.timestamp) > 10 * 60 * 1000) NonVegRed else GoldPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
                 StatusBadge(status = order.status)
             }
@@ -313,17 +344,28 @@ private fun AdminOrderCard(
                 order.items.forEach { cartItem ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${cartItem.quantity} x ${cartItem.menuItem.name}",
+                            text = "${cartItem.quantity}x",
+                            color = GoldPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.width(32.dp)
+                        )
+                        Text(
+                            text = cartItem.menuItem.name,
                             color = CreamWhite,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = String.format(Locale.getDefault(), "Rs. %,.2f", cartItem.menuItem.price * cartItem.quantity),
-                            color = CreamMuted,
-                            fontSize = 13.sp
+                            color = CreamWhite,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }

@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collect
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.CartItem
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.MenuItem
 import lk.nibm.kandy.hdse252ft.smartrestaurantpos.data.model.Order
@@ -55,6 +56,29 @@ class CartViewModel @Inject constructor(
             _tableNumber.value = savedTable
             _isTableLocked.value = true
         }
+
+        viewModelScope.launch {
+            orderRepository.getAllOrders().collect { orders ->
+                val lastOrderId = sharedPrefs.getString("last_placed_order_id", "") ?: ""
+                if (lastOrderId.isNotBlank()) {
+                    val order = orders.find { it.id == lastOrderId }
+                    if (order != null && order.status == OrderStatus.CANCELLED) {
+                        val timeElapsedMs = System.currentTimeMillis() - order.timestamp
+                        val fiveMinutesMs = 5 * 60 * 1000
+                        if (timeElapsedMs < fiveMinutesMs) {
+                            clearTableNumber()
+                        }
+                        sharedPrefs.edit().remove("last_placed_order_id").apply()
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearTableNumber() {
+        _tableNumber.value = ""
+        _isTableLocked.value = false
+        sharedPrefs.edit().remove("locked_table_number").apply()
     }
 
     private val _isPlacingOrder = MutableStateFlow(false)
@@ -196,6 +220,7 @@ class CartViewModel @Inject constructor(
                     )
                 }
                 _cartItems.value = emptyList()
+                sharedPrefs.edit().putString("last_placed_order_id", orderId).apply()
                 onSuccess(orderId)
             } catch (e: Exception) {
                 _placeOrderError.value = e.localizedMessage ?: "Unable to place order"

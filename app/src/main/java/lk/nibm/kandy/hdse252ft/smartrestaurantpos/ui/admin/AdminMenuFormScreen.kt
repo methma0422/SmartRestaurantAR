@@ -1,10 +1,12 @@
 package lk.nibm.kandy.hdse252ft.smartrestaurantpos.ui.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +34,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -184,154 +187,179 @@ fun AdminMenuFormScreen(
                     .padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Live Image Preview Card
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(160.dp)
-                        .border(1.dp, GoldPrimary.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF151210))
-                ) {
-                    if (menuItem.imageUrl.isNotBlank()) {
-                        AsyncImage(
-                            model = menuItem.imageUrl,
-                            contentDescription = "Preview",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.Center,
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Photo,
-                                contentDescription = null,
-                                tint = CreamMuted,
-                                modifier = Modifier.size(44.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Image Preview",
-                                color = CreamMuted,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // Input fields
-                FormField("Name", menuItem.name, viewModel::updateName)
-
-                // Category Dropdown Input Box
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = menuItem.category,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category") },
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            IconButton(onClick = { dropdownExpanded = !dropdownExpanded }) {
-                                Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = GoldPrimary)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF1B1715),
-                            unfocusedContainerColor = Color(0xFF1B1715),
-                            focusedBorderColor = GoldPrimary,
-                            unfocusedBorderColor = Color(0xFF2E2722),
-                            focusedTextColor = CreamWhite,
-                            unfocusedTextColor = CreamWhite,
-                            focusedLabelColor = GoldPrimary,
-                            unfocusedLabelColor = CreamMuted
-                        )
-                    )
+                // Card 1: General Information
+                FormSectionCard(title = "General Information") {
+                    FormField("Name", menuItem.name, viewModel::updateName)
                     
-                    DropdownMenu(
-                        expanded = dropdownExpanded,
-                        onDismissRequest = { dropdownExpanded = false },
-                        modifier = Modifier.fillMaxWidth(0.9f).background(Color(0xFF1C1816))
-                    ) {
-                        allCategories.forEach { category ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Category Dropdown Input Box
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = menuItem.category,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Category") },
+                            modifier = Modifier.fillMaxWidth(),
+                            trailingIcon = {
+                                IconButton(onClick = { dropdownExpanded = !dropdownExpanded }) {
+                                    Icon(Icons.Default.ArrowDropDown, contentDescription = null, tint = GoldPrimary)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = Color(0xFF1B1715),
+                                unfocusedContainerColor = Color(0xFF1B1715),
+                                focusedBorderColor = GoldPrimary,
+                                unfocusedBorderColor = Color(0xFF2E2722),
+                                focusedTextColor = CreamWhite,
+                                unfocusedTextColor = CreamWhite,
+                                focusedLabelColor = GoldPrimary,
+                                unfocusedLabelColor = CreamMuted
+                            )
+                        )
+                        
+                        DropdownMenu(
+                            expanded = dropdownExpanded,
+                            onDismissRequest = { dropdownExpanded = false },
+                            modifier = Modifier.fillMaxWidth(0.9f).background(Color(0xFF1C1816))
+                        ) {
+                            allCategories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category, color = CreamWhite) },
+                                    onClick = {
+                                        viewModel.updateCategory(category)
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
-                                text = { Text(category, color = CreamWhite) },
+                                text = { Text("+ Custom...", color = GoldPrimary, fontWeight = FontWeight.Bold) },
                                 onClick = {
-                                    viewModel.updateCategory(category)
                                     dropdownExpanded = false
+                                    showCustomCategoryDialog = true
                                 }
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text("+ Custom...", color = GoldPrimary, fontWeight = FontWeight.Bold) },
-                            onClick = {
-                                dropdownExpanded = false
-                                showCustomCategoryDialog = true
+                    }
+                }
+
+                // Card 2: Pricing & Product Details
+                FormSectionCard(title = "Pricing & Product Details") {
+                    FormField("Price (Rs.)", if (menuItem.price == 0.0) "" else menuItem.price.toString(), onValueChange = viewModel::updatePrice)
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    FormField(
+                        "Discounted Price (Rs. optional)",
+                        menuItem.discountedPrice?.toString() ?: "",
+                        onValueChange = viewModel::updateDiscountedPrice
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    FormField("Calories", if (menuItem.calories == 0) "" else menuItem.calories.toString(), onValueChange = viewModel::updateCalories)
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    FormField(
+                        "Description",
+                        menuItem.description,
+                        onValueChange = viewModel::updateDescription,
+                        singleLine = false
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Vegetarian Option", color = CreamWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Switch(checked = menuItem.isVegetarian, onCheckedChange = viewModel::updateIsVegetarian)
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Mark as New/Featured", color = CreamWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Switch(checked = menuItem.isNew, onCheckedChange = viewModel::updateIsNew)
+                    }
+                }
+
+                // Card 3: Visual & Media
+                FormSectionCard(title = "Visual & Media") {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .border(0.5.dp, GoldPrimary.copy(alpha = 0.15f), RoundedCornerShape(12.dp)),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0C0B))
+                    ) {
+                        if (menuItem.imageUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = menuItem.imageUrl,
+                                contentDescription = "Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Column(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Photo,
+                                    contentDescription = null,
+                                    tint = CreamMuted,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Image Preview",
+                                    color = CreamMuted,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
-                        )
+                        }
                     }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    FormField("Image URL", menuItem.imageUrl, viewModel::updateImageUrl)
                 }
 
-                FormField("Price (Rs.)", if (menuItem.price == 0.0) "" else menuItem.price.toString(), onValueChange = viewModel::updatePrice)
-                FormField(
-                    "Discounted Price (Rs. optional)",
-                    menuItem.discountedPrice?.toString() ?: "",
-                    onValueChange = viewModel::updateDiscountedPrice
-                )
-                FormField("Calories", if (menuItem.calories == 0) "" else menuItem.calories.toString(), onValueChange = viewModel::updateCalories)
-                FormField("Image URL", menuItem.imageUrl, viewModel::updateImageUrl)
-                FormField(
-                    "Description",
-                    menuItem.description,
-                    onValueChange = viewModel::updateDescription,
-                    singleLine = false
-                )
-
-                // Switches
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Vegetarian Option", color = CreamWhite, fontWeight = FontWeight.Bold)
-                    Switch(checked = menuItem.isVegetarian, onCheckedChange = viewModel::updateIsVegetarian)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Mark as New/Featured", color = CreamWhite, fontWeight = FontWeight.Bold)
-                    Switch(checked = menuItem.isNew, onCheckedChange = viewModel::updateIsNew)
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Ingredients
-                Text("Ingredients & Benefits", fontWeight = FontWeight.Bold, color = GoldPrimary, fontFamily = FontFamily.Serif, fontSize = 16.sp)
-                
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    menuItem.ingredients.forEachIndexed { index, ingredient ->
-                        IngredientFields(
-                            name = ingredient.name,
-                            benefits = ingredient.benefits.joinToString(", "),
-                            onNameChange = { viewModel.updateIngredient(index, it, ingredient.benefits.joinToString(", ")) },
-                            onBenefitsChange = { viewModel.updateIngredient(index, ingredient.name, it) },
-                            onRemove = { viewModel.removeIngredient(index) }
-                        )
+                // Card 4: Ingredients & Benefits
+                FormSectionCard(title = "Ingredients & Health Benefits") {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        menuItem.ingredients.forEachIndexed { index, ingredient ->
+                            IngredientFields(
+                                name = ingredient.name,
+                                benefits = ingredient.benefits.joinToString(", "),
+                                onNameChange = { viewModel.updateIngredient(index, it, ingredient.benefits.joinToString(", ")) },
+                                onBenefitsChange = { viewModel.updateIngredient(index, ingredient.name, it) },
+                                onRemove = { viewModel.removeIngredient(index) }
+                            )
+                        }
                     }
-                }
-
-                TextButton(
-                    onClick = viewModel::addIngredient,
-                    colors = ButtonDefaults.textButtonColors(contentColor = GoldPrimary)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null)
-                    Text(" Add Ingredient", fontWeight = FontWeight.Bold)
+                    
+                    Spacer(modifier = Modifier.height(6.dp))
+                    
+                    TextButton(
+                        onClick = viewModel::addIngredient,
+                        colors = ButtonDefaults.textButtonColors(contentColor = GoldPrimary)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Text(" Add Ingredient", fontWeight = FontWeight.Bold)
+                    }
                 }
 
                 if (errorMessage != null) {
@@ -343,25 +371,71 @@ fun AdminMenuFormScreen(
                 // Validation rule
                 val isFormValid = menuItem.name.isNotBlank() && menuItem.category.isNotBlank() && menuItem.price > 0.0
 
-                Button(
-                    onClick = {
-                        viewModel.save { navController.popBackStack() }
-                    },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    enabled = isFormValid && !isSaving,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = GoldPrimary,
-                        disabledContainerColor = GoldPrimary.copy(alpha = 0.3f)
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (isSaving) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color(0xFF1E1B18))
-                    } else {
-                        Text("SAVE DISH", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = if (isFormValid) Color(0xFF1E1B18) else CreamMuted)
+                    OutlinedButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.weight(0.8f).height(48.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = CreamWhite),
+                        border = BorderStroke(1.dp, Color(0xFF2E2722)),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Text("CANCEL", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.save { navController.popBackStack() }
+                        },
+                        modifier = Modifier.weight(1.2f).height(48.dp),
+                        enabled = isFormValid && !isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = GoldPrimary,
+                            disabledContainerColor = GoldPrimary.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        if (isSaving) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp, color = Color(0xFF1E1B18))
+                        } else {
+                            Text("SAVE DISH", fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = if (isFormValid) Color(0xFF1E1B18) else CreamMuted, fontSize = 13.sp)
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun FormSectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, GoldPrimary.copy(alpha = 0.15f), RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF14110F))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = title.uppercase(),
+                color = GoldPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Serif,
+                letterSpacing = 1.sp
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            content()
         }
     }
 }
